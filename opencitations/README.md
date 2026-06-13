@@ -1,5 +1,15 @@
 # OpenCitations in the biodiversity data lake
 
+## Sources
+
+Downloads from https://download.opencitations.net
+
+- OpenCitations, & Massari, A. (2026). OpenCitations Meta CSV dataset of all bibliographic metadata (Version 13) [Data set]. Zenodo. https://doi.org/10.5281/zenodo.18324537
+
+- , O. (2023). OpenCitations Index CSV dataset of all the citation data (Version 7). figshare. https://doi.org/10.6084/m9.figshare.24356626.v7
+
+## Parquet tables
+
 Two Parquet tables built from OpenCitations dumps, queryable with DuckDB.
 
 | File | What | Rows | Size |
