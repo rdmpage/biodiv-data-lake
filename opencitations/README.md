@@ -179,13 +179,97 @@ GROUP BY author_sc;
 
 ## Files in this folder
 
-- `opencitations.parquet`, `opencitations_meta.parquet` — the data lake tables
+- `opencitations.parquet`, `opencitations_meta.parquet` — the core data tables
+- `work_stats.parquet`, `doi_omid.parquet` — precomputed helpers (see below)
 - `output_csv_2026_01_14.tar.gz` — raw Meta source (kept for rebuilds)
-- `figsharefiles.sh` — citation zip downloader (re-downloadable source)
+- `figsharefiles.sh`, `figsharefiles.txt` — citation zip downloader + id list
 - `build_parquet.sh` — citations → Parquet
 - `build_meta_parquet.sh` — Meta → Parquet
-- `*.log`, `figsharefiles.txt`, `figsharefiles.sh.bak` — build logs / scratch
+- `build_stats.sql` — builds `work_stats.parquet` + `doi_omid.parquet`
+- `*.log` — build logs
 
 The figshare zips, `parts/`, and the extracted Meta CSVs were deleted after the
 Parquet files were verified; all are reproducible from the scripts and the
-`.tar.gz`.
+`.tar.gz`. The adapter views and macros live in `../views.sql`.
+
+---
+
+## Use-case patterns (via the catalog)
+
+Run these from the **repo root** after loading the catalog
+(`duckdb lake.duckdb -c ".read views.sql"`). They use the views/macros
+(`works`, `citations`, `doi_omid`, `work_stats`, `cites()`, `cited_by()`,
+`citation_count()`) instead of raw `read_parquet`.
+
+### 1. Casual — one DOI
+
+```sql
+-- Instant count (reads work_stats, no big scan):
+SELECT citation_count('10.1016/j.ajog.2011.08.004');
+
+-- The actual citers / reference list (scans citations, ~20 s):
+SELECT * FROM cited_by('10.1016/j.ajog.2011.08.004');   -- who cites it
+SELECT * FROM cites('10.1016/j.ajog.2011.08.004');      -- what it cites
+```
+
+### 2. Batch metrics — impact of a set of DOIs (e.g. BHL)
+
+Load your DOIs into a table (lowercased), then join to the precomputed stats —
+this is a hash join over small tables, not a 2.3 B-row scan, so it's fast even
+for tens of thousands of DOIs.
+
+```sql
+-- e.g. CREATE TABLE bhl_dois AS SELECT lower(doi) AS doi FROM read_csv('bhl_dois.csv');
+
+-- per-DOI citation counts (0 for DOIs absent / never cited)
+SELECT b.doi, coalesce(s.n_cited_by, 0) AS times_cited
+FROM bhl_dois b
+LEFT JOIN doi_omid m   ON m.doi  = b.doi
+LEFT JOIN work_stats s ON s.omid = m.omid
+ORDER BY times_cited DESC;
+
+-- aggregate impact
+SELECT count(*)                               AS dois,
+       count(m.omid)                          AS matched_in_opencitations,
+       sum(coalesce(s.n_cited_by, 0))         AS total_citations
+FROM bhl_dois b
+LEFT JOIN doi_omid m   ON m.doi  = b.doi
+LEFT JOIN work_stats s ON s.omid = m.omid;
+```
+
+### 3. Citation-graph queries
+
+The OMID `citations` edge list is the graph substrate; resolve to DOIs at the
+ends as needed. These are heavier (self-joins / scans) — fine for a focal set,
+expensive across the whole corpus.
+
+**Co-citation** — works most often cited *together with* a focal work (papers
+that share citers are topically related):
+
+```sql
+WITH focal AS (SELECT omid FROM doi_omid WHERE doi = '10.1016/j.ajog.2011.08.004')
+SELECT co.cited_omid AS related_omid,
+       w.title,
+       count(*)      AS co_citations
+FROM citations a                                   -- citers of the focal work
+JOIN citations co ON co.citing_omid = a.citing_omid -- other works those citers cite
+LEFT JOIN works w ON w.omid = co.cited_omid
+WHERE a.cited_omid = (SELECT omid FROM focal)
+  AND co.cited_omid <> (SELECT omid FROM focal)
+GROUP BY co.cited_omid, w.title
+ORDER BY co_citations DESC
+LIMIT 25;
+```
+
+**Disruption / CD index** (Funk & Owen-Smith; an SQL formulation exists for
+BigQuery). For a focal paper F: classify each work that cites F by whether it
+*also* cites F's references — type i (cites F only) is "disruptive", type j
+(cites both) is "consolidating", type k (cites refs only, not F). CD ≈
+(n_i − n_j) / (n_i + n_j + n_k). All computable from `citations` for a focal set;
+best run per-paper or for a modest batch rather than corpus-wide. *(Template to
+be added once we pick the focal-set workflow.)*
+
+> Performance note: graph queries and `cited_by()`/`cites()` scan the 38 GB
+> citations file. If these become a routine workload we can add a citations copy
+> **sorted by `cited_omid`** so DuckDB prunes row groups on lookups (turning ~20 s
+> scans into sub-second seeks) — see the repo README roadmap.

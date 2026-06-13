@@ -47,6 +47,8 @@ fully reproducible from the scripts above.
 | **OpenCitations Index** (citations) | ✅ ingested | `opencitations/opencitations.parquet` — 2,315,872,191 rows, 38 GB |
 | **OpenCitations Meta** (works) | ✅ ingested | `opencitations/opencitations_meta.parquet` — 122,191,271 rows, 11 GB |
 | Adapter views | ✅ `works`, `citations`, `citations_resolved` | clean columns incl. first-class `doi`/`omid` |
+| Precomputed stats | ✅ `work_stats` (101M), `doi_omid` (108M) | per-work in/out degree + DOI→OMID map; instant counts |
+| Query macros | ✅ `citation_count()`, `cited_by()`, `cites()` | see opencitations/README.md |
 | Catalogue of Life | ⬜ source identified | ColDP export (see Sources) |
 | GBIF | ⬜ planned | predicate/SQL download, then re-partition Hive-style |
 | BOLD, BHL | ⬜ planned | |
@@ -78,10 +80,12 @@ most-cited works) are in [`opencitations/README.md`](opencitations/README.md).
 
 ## Where we're going (next)
 
-1. **Faster DOI queries for OpenCitations.** The query above full-scans the 38 GB
-   citations file (~20 s). Decide whether to add a **Gold** layer (precomputed
-   per-work `n_cited_by` / `n_references` table) for ~1–3 s lookups, or keep it
-   pure-views (KISS). *(Open design question — revisit next.)*
+1. **Faster DOI queries for OpenCitations.** ✅ Done — `work_stats` precomputes
+   per-work `n_cited_by`/`n_references`, so `citation_count(doi)` and BHL-style
+   batch joins return in ~1–3 s instead of a 20 s scan. *Still open:* edge-LIST
+   queries (`cited_by()`, co-citation, disruption) remain ~20 s scans; a citations
+   copy **sorted by `cited_omid`** would prune those to sub-second seeks — build it
+   if graph queries become routine.
 2. **Bring in a taxonomic backbone** (GBIF taxonKey or COL IDs) as the reconciliation
    spine, then add occurrence/taxonomic datasets and map their columns onto
    **Darwin Core** via adapter views.
