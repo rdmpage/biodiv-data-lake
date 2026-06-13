@@ -239,6 +239,40 @@ where silent bugs live — keep value-level transforms explicit and tested, not
 buried in a view. `union_by_name` stacks similar files but does **not** rename or
 reconcile.
 
+### Worked example: three sources, one "doi" — and the col: prefix
+
+We now have three bibliographic sources that each carry a DOI, a title, a year,
+authors — under three different spellings:
+
+| concept | OpenCitations Meta | BHL | COL (ColDP) |
+|---|---|---|---|
+| identifier | `omid` / packed `id` | `DOI` (table `doi`) | `col:ID`, `col:doi` |
+| title | `title` | `Title` | `col:title` |
+| year / date | `pub_date` | `Date` / `Year` | `col:issued`, `col:namePublishedInYear` |
+| authors | `author` | `creator` / `partcreator` | `col:author` |
+
+ColDP adds two wrinkles. Every column is namespaced (`col:doi`, `col:title`), and
+the prefix is **not** a reliable type: `col:doi` is just a DOI, `clb:merged` is a
+ChecklistBank merge artefact, and most `col:` terms are generic CSL / Dublin-Core
+fields, not COL-specific. So the prefix can't be stripped blindly to get a clean
+name, nor trusted as a meaningful namespace — it has to be mapped explicitly.
+
+The lake's answer is unchanged: a per-source adapter view maps the source
+spelling to the canonical name, so queries say `doi`, never `col:doi`. The COL
+views (`col_reference`, `col_name_usage`) expose `reference_id`, `doi`, `title`,
+`issued`, … and drop the `col:` / `clb:` prefixes; the cross-source question
+"COL references that BHL holds" is then just `col_reference.doi = bhl_doi.doi`
+(4.6% of COL's 2.03M references carry a DOI; ~13k of those DOIs are in BHL).
+
+What still needs deciding (the open task): the **canonical target vocabulary**
+across the whole lake. Bibliographic fields should converge on CSL-JSON / Dublin
+Core (`DOI`→`doi`, `container-title`→`container_title`, `issued`→`year`),
+taxonomic fields on Darwin Core (`scientificName`, `taxonID`, `taxonRank`, …).
+Until that crosswalk is written down (the `source, source_column, canonical_term,
+notes` table mentioned above), each adapter view makes the call ad hoc — fine for
+now, but the three "doi"s above should all alias to the *same* canonical `doi`,
+chosen deliberately rather than per-view.
+
 ### In one line
 
 Keep raw untouched; conform lazily through per-source adapter views; borrow an

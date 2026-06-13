@@ -186,3 +186,55 @@ FROM read_parquet('bhl/pagename.parquet');
 
 -- Joining BHL part DOIs to OpenCitations citation counts is kept as a worked
 -- example under sandbox/bhl-oc-citations/ rather than as catalog views.
+
+-- =============================================================================
+-- Catalogue of Life (ColDP export) — adapter views over col/*.parquet
+-- Source: ChecklistBank dataset 315192 (extended ColDP). Build with
+-- col/build_parquet.sh. ColDP columns are namespaced (col:/clb:); these views
+-- map the ones we use to canonical names and drop the prefixes. doi is cleaned
+-- (lowercased/trimmed) so it joins bhl_doi.doi and opencitations doi_omid.doi.
+-- =============================================================================
+
+-- Bibliographic references cited by COL name usages.
+CREATE OR REPLACE VIEW col_reference AS
+SELECT "col:ID"             AS reference_id,
+       "col:citation"       AS citation,
+       "col:author"         AS author,
+       "col:title"          AS title,
+       "col:containerTitle" AS container_title,
+       "col:issued"         AS issued,
+       "col:volume"         AS volume,
+       "col:issue"          AS issue,
+       "col:page"           AS page,
+       lower(nullif(trim("col:doi"), '')) AS doi,   -- canonical: lowercase, blanks->NULL
+       "col:doi"            AS raw_doi,
+       "col:issn"           AS issn,
+       "col:isbn"           AS isbn,
+       "col:link"           AS link,
+       "col:type"           AS type,
+       "col:sourceID"       AS source_id
+FROM read_parquet('col/Reference.parquet');
+
+-- Taxonomic name usages (taxa + synonyms): the backbone. Higher classification
+-- is denormalised on each row (kingdom..genus). nameReferenceID -> col_reference
+-- is the original-description link (name -> literature -> BHL/OpenCitations).
+CREATE OR REPLACE VIEW col_name_usage AS
+SELECT "col:ID"                   AS usage_id,
+       "col:parentID"             AS parent_id,
+       "col:basionymID"           AS basionym_id,
+       "col:status"               AS status,
+       "col:scientificName"       AS scientific_name,
+       "col:authorship"           AS authorship,
+       "col:rank"                 AS rank,
+       "col:code"                 AS nomenclatural_code,
+       "col:genericName"          AS generic_name,
+       "col:specificEpithet"      AS specific_epithet,
+       "col:infraspecificEpithet" AS infraspecific_epithet,
+       "col:nameReferenceID"      AS name_reference_id,   -- original description
+       "col:referenceID"          AS reference_id,        -- supporting reference(s)
+       "col:namePublishedInYear"  AS name_published_in_year,
+       "col:extinct"              AS extinct,
+       "col:kingdom" AS kingdom, "col:phylum" AS phylum, "col:class" AS class,
+       "col:order"   AS "order",  "col:family" AS family, "col:genus" AS genus,
+       "col:link"                 AS link
+FROM read_parquet('col/NameUsage.parquet');

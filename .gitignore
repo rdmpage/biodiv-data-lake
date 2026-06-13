@@ -18,6 +18,9 @@ opencitations/output_csv_*/
 # Build/run logs
 *.log
 
+# DuckDB temp spill directory (PRAGMA temp_directory='.tmp')
+.tmp/
+
 # macOS
 .DS_Store
 
@@ -27,6 +30,13 @@ opencitations/output_csv_*/
 # SQLite exports
 *.sqlite
 *.sqlite3
+
+# Catalogue of Life ColDP export — bulk files extracted from export.zip
+# (reproducible; export.zip itself is ignored by *.zip above). Keep README.md.
+col/*.tsv
+col/source/
+col/reference.json
+col/reference.jsonl
 
 # Local Claude Code config (machine-specific paths)
 .claude/

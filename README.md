@@ -56,7 +56,8 @@ fully reproducible from the scripts above.
 | Query macros | ✅ `citation_count()`, `work_by_doi()`, `work_by_omid()`, `cited_by()`, `cites()`, `related()` | see opencitations/README.md |
 | **BHL** export | ✅ ingested | 13 tables → `bhl/*.parquet` (incl. `pagename` 217M names); views `bhl_*`; see bhl/README.md |
 | **BHL ⋈ OpenCitations** | ✅ example | sandbox join `sandbox/bhl-oc-citations/` — BHL parts carry ~2.81M citations via external DOIs |
-| Catalogue of Life | ⬜ source identified | ColDP export (see Sources) |
+| **Catalogue of Life** | ✅ ingested | `NameUsage` (7.85M) + `Reference` (2.03M) → `col/*.parquet`; views `col_name_usage`, `col_reference`; see col/README.md |
+| **COL ⋈ BHL** | ✅ working | 12,963 COL reference DOIs are in BHL; 94,501 names link to a BHL-held original description |
 | GBIF | ⬜ planned | predicate/SQL download, then re-partition Hive-style |
 | BOLD, BHL | ⬜ planned | |
 
