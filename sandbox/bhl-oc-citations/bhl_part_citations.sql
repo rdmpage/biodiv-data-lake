@@ -39,3 +39,47 @@ JOIN bhl_part p ON p.part_id = pc.part_id
 WHERE pc.doi_kind = 'external'
 ORDER BY pc.n_cited_by DESC
 LIMIT 20;
+
+-- =============================================================================
+-- Literature-only variant: exclude GBIF occurrence-download citers
+-- =============================================================================
+-- The counts above use work_stats.n_cited_by, the precomputed in-degree, which
+-- includes GBIF occurrence-download DOIs (10.15468/dl.* and cdl.*). GBIF mints a
+-- DOI per download that machine-cites every dataset it draws from, so popular
+-- datasets accrue tens of thousands of "citations" that aren't literature
+-- (e.g. Florabank1, 10.3897/phytokeys.12.2849: ~75k citers, of which only 15
+-- are papers). Excluding download citers requires the citing work's identity,
+-- so we can't use work_stats — we scan the citation edges and anti-join.
+
+-- Citing works that are GBIF occurrence downloads (both download prefixes).
+CREATE OR REPLACE TEMP VIEW gbif_download_omid AS
+SELECT DISTINCT omid FROM doi_omid WHERE doi LIKE '10.15468/%';
+
+-- Literature-only citation count per part DOI. count(DISTINCT citing_omid) also
+-- sidesteps the doi_omid-not-unique inflation. Scans the 38 GB citations file
+-- (~30-40 s); only parts with >=1 non-GBIF citer appear (INNER JOINs).
+CREATE OR REPLACE TEMP VIEW bhl_part_citations_lit AS
+SELECT pd.part_id, pd.doi, pd.doi_kind,
+       count(DISTINCT c.citing_omid) AS n_cited_by_lit
+FROM bhl_part_dois pd
+JOIN doi_omid m  ON m.doi = pd.doi
+JOIN citations c ON c.cited_omid = m.omid
+LEFT JOIN gbif_download_omid g ON g.omid = c.citing_omid
+WHERE g.omid IS NULL
+GROUP BY pd.part_id, pd.doi, pd.doi_kind;
+
+-- Literature-only headline: parts with >=1 non-GBIF citer, and their citations.
+SELECT doi_kind,
+       count(*)            AS parts_cited,
+       sum(n_cited_by_lit) AS total_lit_citations
+FROM bhl_part_citations_lit
+GROUP BY doi_kind
+ORDER BY total_lit_citations DESC;
+
+-- Most-cited BHL parts, GBIF downloads excluded — the real literature view.
+SELECT pc.n_cited_by_lit, p.title, p.container_title, p.date, pc.doi
+FROM bhl_part_citations_lit pc
+JOIN bhl_part p ON p.part_id = pc.part_id
+WHERE pc.doi_kind = 'external'
+ORDER BY pc.n_cited_by_lit DESC
+LIMIT 20;

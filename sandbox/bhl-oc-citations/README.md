@@ -50,13 +50,42 @@ So the robust rule is **prefix, not pattern**: `doi LIKE '10.5962/%'` ⇒
   external / 2,865,192 cites) were skewed by the single-pattern classifier, which
   filed the 12,609 `10.5962/bhl.part.*` DOIs as external.
 
-### Caveat on the "most-cited" list
+### Caveat: GBIF downloads dominate the head of the list
 
-The top external parts are Pensoft data papers (PhytoKeys, ZooKeys, Biodiversity
-Data Journal) with citation counts in the tens of thousands (e.g. *Florabank1*,
-75 k). Those are dataset/occurrence citations, not classic article citations, so
-they dominate the head of the distribution. Filter by container/journal if you
-want a literature-only view.
+The naive most-cited list is topped by Pensoft data papers (PhytoKeys, ZooKeys,
+Biodiversity Data Journal) with citation counts in the tens of thousands. These
+aren't literature citations — they're **GBIF occurrence-download** events. GBIF
+mints a DOI (`10.15468/dl.*`, and custom downloads `10.15468/cdl.*`) for every
+download and machine-cites the datasets it draws from, so a widely-used dataset
+accrues huge "citation" counts.
+
+The clearest case is *Florabank1* (`10.3897/phytokeys.12.2849`, 75,135 cites):
+
+| citer kind | distinct citing DOIs |
+|---|---:|
+| GBIF occurrence downloads (`10.15468/{dl,cdl}.*`) | 75,120 |
+| scholarly literature | **15** |
+
+### Literature-only variant (GBIF downloads excluded)
+
+`work_stats.n_cited_by` (the precomputed in-degree) can't be filtered by citer,
+so the literature-only view scans the citation edges and anti-joins out
+download citers (`bhl_part_citations_lit` in the SQL; ~30-40 s):
+
+| part DOIs (>=1 lit citer) | count | literature citations |
+|---|---:|---:|
+| external publisher | 58,700 | **561,510** |
+| BHL-minted (`10.5962/*`) | 24,442 | 132,984 |
+
+Excluding downloads cuts external citations from 2.81M → 562k, and the most-cited
+list becomes genuine biodiversity literature — e.g. Grinnell's 1917 *The
+Niche-Relationships of the California Thrasher*, Chagas' 1909 description of
+*Schizotrypanum cruzi*, GeoCAT, and the APG ordinal classification of flowering
+plants — instead of download artifacts.
+
+> Note: this treats GBIF downloads as non-literature *citers* only. They remain
+> in the graph as cited works too; a stricter analysis would also drop
+> `10.15468/%` from the cited side.
 
 ## Gotcha
 
