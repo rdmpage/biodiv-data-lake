@@ -35,6 +35,8 @@ opencitations/output_csv_*/
 # (reproducible; export.zip itself is ignored by *.zip above). Keep README.md.
 col/*.tsv
 col/source/
+col/metadata.yaml
+col/reference.bib
 col/reference.json
 col/reference.jsonl
 
