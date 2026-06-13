@@ -1,0 +1,25 @@
+# ---- Data & generated artifacts (live in the working tree, never in git) ----
+# Bulk source dumps and converted tables are far too large for GitHub and are
+# all reproducible from the scripts in this repo.
+*.parquet
+*.tar.gz
+*.zip
+*.csv.gz
+
+# DuckDB catalog (regenerate from views.sql: duckdb lake.duckdb -c ".read views.sql")
+*.duckdb
+*.duckdb.wal
+
+# Extracted CSV working dirs (e.g. OpenCitations Meta extraction)
+opencitations/output_csv_*/
+**/csv_tmp/
+**/parts/
+
+# Build/run logs
+*.log
+
+# macOS
+.DS_Store
+
+# Keep small reference lists that ARE worth versioning, e.g. figsharefiles.txt
+!figsharefiles.txt
