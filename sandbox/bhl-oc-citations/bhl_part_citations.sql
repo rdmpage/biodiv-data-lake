@@ -51,9 +51,8 @@ LIMIT 20;
 -- are papers). Excluding download citers requires the citing work's identity,
 -- so we can't use work_stats — we scan the citation edges and anti-join.
 
--- Citing works that are GBIF occurrence downloads (both download prefixes).
-CREATE OR REPLACE TEMP VIEW gbif_download_omid AS
-SELECT DISTINCT omid FROM doi_omid WHERE doi LIKE '10.15468/%';
+-- Citing works that are GBIF occurrence downloads (both download prefixes) come
+-- from the shared gbif_download_omid helper view in views.sql.
 
 -- Literature-only citation count per part DOI. count(DISTINCT citing_omid) also
 -- sidesteps the doi_omid-not-unique inflation. Scans the 38 GB citations file

@@ -73,6 +73,16 @@ CREATE OR REPLACE VIEW work_stats AS
 SELECT omid, n_cited_by, n_references
 FROM read_parquet('opencitations/work_stats.parquet');
 
+-- GBIF occurrence downloads, OMID-keyed. GBIF mints a DOI per download
+-- (10.15468/dl.* and custom downloads 10.15468/cdl.*) that machine-cites every
+-- dataset the download draws from. These flood the citation graph — a popular
+-- dataset accrues tens of thousands of download "citations" that aren't
+-- literature. To measure literature impact, anti-join citing_omid against this:
+--   ... LEFT JOIN gbif_download_omid g ON g.omid = c.citing_omid WHERE g.omid IS NULL
+-- (~1.5M works; derived from doi_omid, ~4 s). See sandbox/bhl-oc-citations/.
+CREATE OR REPLACE VIEW gbif_download_omid AS
+SELECT DISTINCT omid FROM doi_omid WHERE doi LIKE '10.15468/%';
+
 -- =============================================================================
 -- Ergonomic macros for casual DOI queries
 -- =============================================================================

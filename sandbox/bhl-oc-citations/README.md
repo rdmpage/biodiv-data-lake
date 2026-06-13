@@ -70,7 +70,8 @@ The clearest case is *Florabank1* (`10.3897/phytokeys.12.2849`, 75,135 cites):
 
 `work_stats.n_cited_by` (the precomputed in-degree) can't be filtered by citer,
 so the literature-only view scans the citation edges and anti-joins out
-download citers (`bhl_part_citations_lit` in the SQL; ~30-40 s):
+download citers — the `gbif_download_omid` helper view in `../../views.sql`
+(`bhl_part_citations_lit` in the SQL; ~30-40 s):
 
 | part DOIs (>=1 lit citer) | count | literature citations |
 |---|---:|---:|
