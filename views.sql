@@ -12,27 +12,17 @@
 -- =============================================================================
 
 -- --- OpenCitations Meta: one row per bibliographic work ----------------------
--- Raw `id` packs several identifiers, space-separated, OMID first, e.g.
---   "omid:br/0690942028 openalex:W1998836856 doi:10.1016/... pmid:21963310"
--- We pull each identifier out into its own column. DOIs are stored lowercase.
+-- The identifiers (doi/omid/pmid/openalex) are extracted once into real columns
+-- by opencitations/build_works_sorted.sql, which writes two physically-sorted
+-- copies. `works` points at the doi-sorted copy so `WHERE doi = '...'` prunes
+-- row groups (sub-second). For lookups/joins by OMID, use `works_by_omid`.
+-- (Raw Meta parquet remains the untouched Bronze source; DOIs are lowercase.)
 CREATE OR REPLACE VIEW works AS
-SELECT
-  split_part(id, ' ', 1)                                AS omid,
-  nullif(lower(regexp_extract(id, 'doi:(\S+)', 1)), '') AS doi,
-  nullif(regexp_extract(id, 'pmid:(\S+)', 1), '')       AS pmid,
-  nullif(regexp_extract(id, 'openalex:(\S+)', 1), '')   AS openalex,
-  title,
-  author                                                AS authors,
-  venue,
-  volume,
-  issue,
-  page,
-  pub_date,
-  type,
-  publisher,
-  editor,
-  id                                                    AS raw_id
-FROM read_parquet('opencitations/opencitations_meta.parquet');
+SELECT * FROM read_parquet('opencitations/works_by_doi.parquet');
+
+-- Same rows, sorted by omid: fast `WHERE omid = '...'` and omid-keyed joins.
+CREATE OR REPLACE VIEW works_by_omid AS
+SELECT * FROM read_parquet('opencitations/works_by_omid.parquet');
 
 -- --- OpenCitations Index: one row per citation (an edge between two works) ---
 CREATE OR REPLACE VIEW citations AS
@@ -63,8 +53,8 @@ SELECT
   c.author_self_citation,
   c.oci
 FROM citations c
-LEFT JOIN works cw ON c.citing_omid = cw.omid
-LEFT JOIN works dw ON c.cited_omid  = dw.omid;
+LEFT JOIN works_by_omid cw ON c.citing_omid = cw.omid
+LEFT JOIN works_by_omid dw ON c.cited_omid  = dw.omid;
 
 -- =============================================================================
 -- Precomputed helpers (build once: duckdb -c ".read opencitations/build_stats.sql")
@@ -94,7 +84,7 @@ CREATE OR REPLACE MACRO cited_by(p_doi) AS TABLE
   SELECT cm.doi AS citing_doi, w.title, w.pub_date, c.citing_omid
   FROM doi_omid m
   JOIN citations c   ON c.cited_omid = m.omid
-  LEFT JOIN works w  ON w.omid  = c.citing_omid
+  LEFT JOIN works_by_omid w ON w.omid  = c.citing_omid
   LEFT JOIN doi_omid cm ON cm.omid = c.citing_omid
   WHERE m.doi = lower(p_doi);
 
@@ -103,9 +93,15 @@ CREATE OR REPLACE MACRO cites(p_doi) AS TABLE
   SELECT dm.doi AS cited_doi, w.title, w.pub_date, c.cited_omid
   FROM doi_omid m
   JOIN citations c   ON c.citing_omid = m.omid
-  LEFT JOIN works w  ON w.omid  = c.cited_omid
+  LEFT JOIN works_by_omid w ON w.omid  = c.cited_omid
   LEFT JOIN doi_omid dm ON dm.omid = c.cited_omid
   WHERE m.doi = lower(p_doi);
+
+-- Single-record lookups (both prune via the sorted copies).
+CREATE OR REPLACE MACRO work_by_doi(p_doi)  AS TABLE
+  SELECT * FROM works         WHERE doi  = lower(p_doi);
+CREATE OR REPLACE MACRO work_by_omid(p_omid) AS TABLE
+  SELECT * FROM works_by_omid WHERE omid = p_omid;
 
 -- Citation count for a DOI (instant — reads work_stats, no citations scan).
 CREATE OR REPLACE MACRO citation_count(p_doi) AS (

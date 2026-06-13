@@ -48,7 +48,8 @@ fully reproducible from the scripts above.
 | **OpenCitations Meta** (works) | ✅ ingested | `opencitations/opencitations_meta.parquet` — 122,191,271 rows, 11 GB |
 | Adapter views | ✅ `works`, `citations`, `citations_resolved` | clean columns incl. first-class `doi`/`omid` |
 | Precomputed stats | ✅ `work_stats` (101M), `doi_omid` (108M) | per-work in/out degree + DOI→OMID map; instant counts |
-| Query macros | ✅ `citation_count()`, `cited_by()`, `cites()` | see opencitations/README.md |
+| Sorted works | ✅ `works` (by doi), `works_by_omid` | record lookup by DOI **or** OMID in ~55 ms (was 19 s) |
+| Query macros | ✅ `citation_count()`, `work_by_doi()`, `work_by_omid()`, `cited_by()`, `cites()` | see opencitations/README.md |
 | Catalogue of Life | ⬜ source identified | ColDP export (see Sources) |
 | GBIF | ⬜ planned | predicate/SQL download, then re-partition Hive-style |
 | BOLD, BHL | ⬜ planned | |
@@ -80,12 +81,14 @@ most-cited works) are in [`opencitations/README.md`](opencitations/README.md).
 
 ## Where we're going (next)
 
-1. **Faster DOI queries for OpenCitations.** ✅ Done — `work_stats` precomputes
-   per-work `n_cited_by`/`n_references`, so `citation_count(doi)` and BHL-style
-   batch joins return in ~1–3 s instead of a 20 s scan. *Still open:* edge-LIST
-   queries (`cited_by()`, co-citation, disruption) remain ~20 s scans; a citations
-   copy **sorted by `cited_omid`** would prune those to sub-second seeks — build it
-   if graph queries become routine.
+1. **Faster DOI queries for OpenCitations.** ✅ Mostly done.
+   - Counts: `work_stats` → `citation_count(doi)` and BHL batch joins in ~1–3 s.
+   - Record lookup: `works`/`works_by_omid` are sorted Parquet copies, so lookup by
+     DOI or OMID prunes to ~55 ms (was 19 s).
+   - *Still open:* edge-LIST queries (`cited_by()`, `cites()`, co-citation,
+     disruption) remain ~20 s scans of the 38 GB citations file. A citations copy
+     **sorted by `cited_omid`** (and one by `citing_omid`) would prune those to
+     sub-second — build when graph queries become routine.
 2. **Bring in a taxonomic backbone** (GBIF taxonKey or COL IDs) as the reconciliation
    spine, then add occurrence/taxonomic datasets and map their columns onto
    **Darwin Core** via adapter views.
