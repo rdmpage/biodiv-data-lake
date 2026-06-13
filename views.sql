@@ -110,3 +110,23 @@ CREATE OR REPLACE MACRO citation_count(p_doi) AS (
   LEFT JOIN work_stats s ON s.omid = m.omid
   WHERE m.doi = lower(p_doi)
 );
+
+-- "Related" works by CO-CITATION: works most often cited together with this DOI
+-- (i.e. sharing citers). Ordered most-related first; add a LIMIT when you call it.
+-- Heavy: two passes over the 38 GB citations edges (~25-30 s) until we build a
+-- sorted citations copy. Bibliographic coupling (shared *references*) is a
+-- different notion — swap the join keys if that's what you want instead.
+CREATE OR REPLACE MACRO related(p_doi) AS TABLE
+  WITH focal AS (SELECT omid FROM doi_omid WHERE doi = lower(p_doi)),
+  cocite AS (
+    SELECT co.cited_omid AS omid, count(*) AS co_citations
+    FROM citations a
+    JOIN citations co ON co.citing_omid = a.citing_omid
+    WHERE a.cited_omid = (SELECT omid FROM focal)
+      AND co.cited_omid <> (SELECT omid FROM focal)
+    GROUP BY co.cited_omid
+  )
+  SELECT cc.co_citations, w.doi, w.title, cc.omid
+  FROM cocite cc
+  LEFT JOIN works_by_omid w ON w.omid = cc.omid
+  ORDER BY cc.co_citations DESC;

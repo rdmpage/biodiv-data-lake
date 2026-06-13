@@ -204,13 +204,22 @@ Run these from the **repo root** after loading the catalog
 ### 1. Casual — one DOI
 
 ```sql
--- Instant count (reads work_stats, no big scan):
-SELECT citation_count('10.1016/j.ajog.2011.08.004');
+-- Single-record lookup, ~55 ms (sorted works copies, row-group pruned):
+SELECT * FROM work_by_doi('10.1093/database/bau061');
+SELECT * FROM work_by_omid('omid:br/06301504805');
+
+-- Instant citation count (reads work_stats, no big scan):
+SELECT citation_count('10.1093/database/bau061');
 
 -- The actual citers / reference list (scans citations, ~20 s):
-SELECT * FROM cited_by('10.1016/j.ajog.2011.08.004');   -- who cites it
-SELECT * FROM cites('10.1016/j.ajog.2011.08.004');      -- what it cites
+SELECT * FROM cited_by('10.1093/database/bau061');   -- who cites it
+SELECT * FROM cites('10.1093/database/bau061');      -- what it cites
+
+-- "Related" works by co-citation (scans citations, ~25-30 s):
+SELECT * FROM related('10.1093/database/bau061') LIMIT 15;
 ```
+
+DOIs are matched lowercase; the macros lowercase their argument for you.
 
 ### 2. Batch metrics — impact of a set of DOIs (e.g. BHL)
 
@@ -244,22 +253,17 @@ ends as needed. These are heavier (self-joins / scans) — fine for a focal set,
 expensive across the whole corpus.
 
 **Co-citation** — works most often cited *together with* a focal work (papers
-that share citers are topically related):
+that share citers are topically related). Wrapped as the `related()` macro:
 
 ```sql
-WITH focal AS (SELECT omid FROM doi_omid WHERE doi = '10.1016/j.ajog.2011.08.004')
-SELECT co.cited_omid AS related_omid,
-       w.title,
-       count(*)      AS co_citations
-FROM citations a                                   -- citers of the focal work
-JOIN citations co ON co.citing_omid = a.citing_omid -- other works those citers cite
-LEFT JOIN works w ON w.omid = co.cited_omid
-WHERE a.cited_omid = (SELECT omid FROM focal)
-  AND co.cited_omid <> (SELECT omid FROM focal)
-GROUP BY co.cited_omid, w.title
-ORDER BY co_citations DESC
-LIMIT 25;
+SELECT co_citations, doi, title FROM related('10.1093/database/bau061') LIMIT 25;
 ```
+
+The macro (see `../views.sql`) finds the focal work's citers, then counts the
+other works those citers also cite — a self-join over the `citations` edges, so
+~25-30 s until we build a sorted citations copy. For **bibliographic coupling**
+(works that share *references* rather than citers), swap the join: match on
+`a.citing_omid = b.citing_omid` over reference sets instead.
 
 **Disruption / CD index** (Funk & Owen-Smith; an SQL formulation exists for
 BigQuery). For a focal paper F: classify each work that cites F by whether it
