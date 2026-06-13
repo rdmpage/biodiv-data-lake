@@ -224,26 +224,42 @@ DOIs are matched lowercase; the macros lowercase their argument for you.
 ### 2. Batch metrics — impact of a set of DOIs (e.g. BHL)
 
 Load your DOIs into a table (lowercased), then join to the precomputed stats —
-this is a hash join over small tables, not a 2.3 B-row scan, so it's fast even
-for tens of thousands of DOIs.
+a hash join over small tables, not a 2.3 B-row scan, so all ~68 k BHL DOIs run
+in ~5 s.
+
+> **Gotcha — `doi_omid` is NOT unique on `doi`.** ~1.9 M DOIs map to >1 OMID
+> (OpenCitations Meta has duplicate work records, up to 11 per DOI). A plain
+> `LEFT JOIN` fans those rows out and over-counts. **Always aggregate to DOI level
+> first** (`GROUP BY doi`, summing `n_cited_by` across the duplicate OMID records —
+> citations are split between them in the Index, so summing recovers the true total).
 
 ```sql
--- e.g. CREATE TABLE bhl_dois AS SELECT lower(doi) AS doi FROM read_csv('bhl_dois.csv');
+-- e.g. CREATE TABLE bhl_dois AS
+--   SELECT DISTINCT lower(trim(column0)) AS doi
+--   FROM read_csv('pdoi.txt', header=false, columns={'column0':'VARCHAR'});
 
--- per-DOI citation counts (0 for DOIs absent / never cited)
-SELECT b.doi, coalesce(s.n_cited_by, 0) AS times_cited
+-- per-DOI citation counts (DOI-level; 0 for absent / never cited)
+SELECT b.doi, sum(coalesce(s.n_cited_by, 0))::BIGINT AS times_cited
 FROM bhl_dois b
 LEFT JOIN doi_omid m   ON m.doi  = b.doi
 LEFT JOIN work_stats s ON s.omid = m.omid
+GROUP BY b.doi
 ORDER BY times_cited DESC;
 
--- aggregate impact
-SELECT count(*)                               AS dois,
-       count(m.omid)                          AS matched_in_opencitations,
-       sum(coalesce(s.n_cited_by, 0))         AS total_citations
-FROM bhl_dois b
-LEFT JOIN doi_omid m   ON m.doi  = b.doi
-LEFT JOIN work_stats s ON s.omid = m.omid;
+-- aggregate impact (dedup to DOI level before counting)
+WITH per_doi AS (
+  SELECT b.doi,
+         bool_or(m.omid IS NOT NULL)           AS found,
+         sum(coalesce(s.n_cited_by, 0))        AS cited_by
+  FROM bhl_dois b
+  LEFT JOIN doi_omid m   ON m.doi  = b.doi
+  LEFT JOIN work_stats s ON s.omid = m.omid
+  GROUP BY b.doi
+)
+SELECT count(*)                          AS dois,
+       count(*) FILTER (WHERE found)     AS matched_in_opencitations,
+       sum(cited_by)::BIGINT             AS total_citations
+FROM per_doi;
 ```
 
 ### 3. Citation-graph queries
