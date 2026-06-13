@@ -197,6 +197,7 @@ GROUP BY author_sc;
 - `build_meta_parquet.sh` — Meta → Parquet
 - `build_stats.sql` — builds `work_stats.parquet` + `doi_omid.parquet`
 - `build_works_sorted.sql` — builds the doi/omid-sorted `works_*` copies
+- `build_citations_sorted.sql` — builds the cited/citing-sorted `citations_by_*` copies
 - `*.log` — build logs
 
 The figshare zips, `parts/`, and the extracted Meta CSVs were deleted after the
@@ -222,11 +223,11 @@ SELECT * FROM work_by_omid('omid:br/06301504805');
 -- Instant citation count (reads work_stats, no big scan):
 SELECT citation_count('10.1093/database/bau061');
 
--- The actual citers / reference list (scans citations, ~20 s):
+-- The actual citers / reference list (sorted edge copies, row-group pruned, ~1-2 s):
 SELECT * FROM cited_by('10.1093/database/bau061');   -- who cites it
 SELECT * FROM cites('10.1093/database/bau061');      -- what it cites
 
--- "Related" works by co-citation (scans citations, ~25-30 s):
+-- "Related" works by co-citation (pass 2 is broad; ~20 s for a highly-cited work):
 SELECT * FROM related('10.1093/database/bau061') LIMIT 15;
 ```
 
@@ -290,21 +291,21 @@ that share citers are topically related). Wrapped as the `related()` macro:
 SELECT co_citations, doi, title FROM related('10.1093/database/bau061') LIMIT 25;
 ```
 
-The macro (see `../views.sql`) finds the focal work's citers, then counts the
-other works those citers also cite — a self-join over the `citations` edges, so
-~25-30 s until we build a sorted citations copy. For **bibliographic coupling**
-(works that share *references* rather than citers), swap the join: match on
-`a.citing_omid = b.citing_omid` over reference sets instead.
+The macro (see `../views.sql`) finds the focal work's citers (pruned via
+`citations_by_cited`), then counts the other works those citers also cite (over
+`citations_by_citing`). Pass 2 spans many scattered row groups for a highly-cited
+work, so it stays ~20 s there. For **bibliographic coupling** (works that share
+*references* rather than citers), swap the join: match on `a.citing_omid =
+b.citing_omid` over reference sets instead.
 
-**Disruption / CD index** (Funk & Owen-Smith; an SQL formulation exists for
-BigQuery). For a focal paper F: classify each work that cites F by whether it
-*also* cites F's references — type i (cites F only) is "disruptive", type j
-(cites both) is "consolidating", type k (cites refs only, not F). CD ≈
-(n_i − n_j) / (n_i + n_j + n_k). All computable from `citations` for a focal set;
-best run per-paper or for a modest batch rather than corpus-wide. *(Template to
-be added once we pick the focal-set workflow.)*
+**Disruption / CD index** (Funk & Owen-Smith; SQL formulation after Sixt & Pasin
+2024). For a focal paper F: classify each work that cites F by whether it *also*
+cites F's references — type i (cites F only) is "disruptive", type j (cites both)
+is "consolidating", type k (cites refs only, not F). CD = (n_i − n_j) /
+(n_i + n_j + n_k). Worked, runnable templates (single-paper and batched, using the
+sorted edge copies) are in [`../sandbox/disruption-index/`](../sandbox/disruption-index/).
 
-> Performance note: graph queries and `cited_by()`/`cites()` scan the 38 GB
-> citations file. If these become a routine workload we can add a citations copy
-> **sorted by `cited_omid`** so DuckDB prunes row groups on lookups (turning ~20 s
-> scans into sub-second seeks) — see the repo README roadmap.
+> Performance: `cited_by()`/`cites()` and the CD lookups use the sorted edge
+> copies (`citations_by_cited`, `citations_by_citing`, built by
+> `build_citations_sorted.sql`), so they prune row groups to ~1–2 s instead of
+> ~20 s full scans. `citations` (unsorted) remains for whole-corpus scans.

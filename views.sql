@@ -36,6 +36,17 @@ SELECT
   id                 AS oci
 FROM read_parquet('opencitations/opencitations.parquet');
 
+-- Physically-sorted copies of the edges (opencitations/build_citations_sorted.sql),
+-- same columns as `citations`, for sub-second zonemap-pruned point lookups:
+--   citations_by_cited  : sorted by cited_omid  -> "who cites X" (in-edges)
+--   citations_by_citing : sorted by citing_omid -> "what does X cite" (out-edges)
+-- Use the one whose sort key matches your WHERE/JOIN key; `citations` (unsorted)
+-- is still the right choice for full scans that filter on neither endpoint.
+CREATE OR REPLACE VIEW citations_by_cited AS
+SELECT * FROM read_parquet('opencitations/citations_by_cited.parquet');
+CREATE OR REPLACE VIEW citations_by_citing AS
+SELECT * FROM read_parquet('opencitations/citations_by_citing.parquet');
+
 -- --- Convenience: citations with both endpoints resolved to DOIs -------------
 -- Lets you filter citations directly by DOI: WHERE cited_doi = '10.xxx'.
 -- NOTE: this joins works onto 2.3B citation rows on the fly, so a query that
@@ -86,26 +97,27 @@ SELECT DISTINCT omid FROM doi_omid WHERE doi LIKE '10.15468/%';
 -- =============================================================================
 -- Ergonomic macros for casual DOI queries
 -- =============================================================================
--- NOTE: these list the actual citing/cited works, so they scan the 38 GB
--- citations file (~20 s). For just the COUNT, join work_stats (instant) instead.
+-- NOTE: these list the actual citing/cited works via the sorted edge copies
+-- (citations_by_cited / citations_by_citing), so they prune to sub-second. For
+-- just the COUNT, join work_stats (instant, no edge scan at all) instead.
 
--- Works that CITE this DOI (its citers).
+-- Works that CITE this DOI (its citers). In-edges -> citations_by_cited.
+-- The sorted-column filter is a WHERE IN (subquery) (not a JOIN) so the OMID is
+-- pushed down and parquet row groups prune (~1-2 s vs a ~20 s full scan).
 CREATE OR REPLACE MACRO cited_by(p_doi) AS TABLE
   SELECT cm.doi AS citing_doi, w.title, w.pub_date, c.citing_omid
-  FROM doi_omid m
-  JOIN citations c   ON c.cited_omid = m.omid
+  FROM citations_by_cited c
   LEFT JOIN works_by_omid w ON w.omid  = c.citing_omid
   LEFT JOIN doi_omid cm ON cm.omid = c.citing_omid
-  WHERE m.doi = lower(p_doi);
+  WHERE c.cited_omid IN (SELECT omid FROM doi_omid WHERE doi = lower(p_doi));
 
--- Works this DOI CITES (its reference list).
+-- Works this DOI CITES (its reference list). Out-edges -> citations_by_citing.
 CREATE OR REPLACE MACRO cites(p_doi) AS TABLE
   SELECT dm.doi AS cited_doi, w.title, w.pub_date, c.cited_omid
-  FROM doi_omid m
-  JOIN citations c   ON c.citing_omid = m.omid
+  FROM citations_by_citing c
   LEFT JOIN works_by_omid w ON w.omid  = c.cited_omid
   LEFT JOIN doi_omid dm ON dm.omid = c.cited_omid
-  WHERE m.doi = lower(p_doi);
+  WHERE c.citing_omid IN (SELECT omid FROM doi_omid WHERE doi = lower(p_doi));
 
 -- Single-record lookups (both prune via the sorted copies).
 CREATE OR REPLACE MACRO work_by_doi(p_doi)  AS TABLE
@@ -123,15 +135,16 @@ CREATE OR REPLACE MACRO citation_count(p_doi) AS (
 
 -- "Related" works by CO-CITATION: works most often cited together with this DOI
 -- (i.e. sharing citers). Ordered most-related first; add a LIMIT when you call it.
--- Heavy: two passes over the 38 GB citations edges (~25-30 s) until we build a
--- sorted citations copy. Bibliographic coupling (shared *references*) is a
--- different notion — swap the join keys if that's what you want instead.
+-- Pass 1 (the focal's citers, by cited_omid) prunes nicely; pass 2 (everything
+-- those citers cite, by citing_omid) touches many scattered row groups, so for a
+-- highly-cited focal work this is still ~20 s — co-citation is inherently broad.
+-- Bibliographic coupling (shared *references*) is a different notion — swap keys.
 CREATE OR REPLACE MACRO related(p_doi) AS TABLE
   WITH focal AS (SELECT omid FROM doi_omid WHERE doi = lower(p_doi)),
   cocite AS (
     SELECT co.cited_omid AS omid, count(*) AS co_citations
-    FROM citations a
-    JOIN citations co ON co.citing_omid = a.citing_omid
+    FROM citations_by_cited a
+    JOIN citations_by_citing co ON co.citing_omid = a.citing_omid
     WHERE a.cited_omid = (SELECT omid FROM focal)
       AND co.cited_omid <> (SELECT omid FROM focal)
     GROUP BY co.cited_omid

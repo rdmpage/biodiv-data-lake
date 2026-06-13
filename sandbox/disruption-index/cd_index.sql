@@ -18,8 +18,9 @@
 -- Run from the repo root (needs views.sql for citations / doi_omid /
 -- works_by_omid / gbif_download_omid):
 --   duckdb lake.duckdb -c ".read views.sql" -c ".read sandbox/disruption-index/cd_index.sql"
--- ~40-60 s: two scans of the 38 GB citations file (one for f, one for its refs).
--- To analyse a different paper, edit focal_doi below.
+-- Uses the sorted edge copies (citations_by_cited / citations_by_citing), so the
+-- citer/reference lookups prune instead of full-scanning — a few seconds on a
+-- quiet disk. To analyse a different paper, edit focal_doi below.
 
 WITH params AS (
   SELECT lower('10.1098/rspb.2002.2218') AS focal_doi,   -- <- change this
@@ -32,25 +33,20 @@ focal_year AS (
   SELECT min(TRY_CAST(left(pub_date, 4) AS INT)) AS t0
   FROM works_by_omid WHERE omid IN (SELECT omid FROM focal_omids)
 ),
--- One scan: every edge touching f, either direction. citing=f gives references;
--- cited=f gives citers.
-fpass AS (
-  SELECT citing_omid, cited_omid FROM citations
-  WHERE cited_omid  IN (SELECT omid FROM focal_omids)
-     OR citing_omid IN (SELECT omid FROM focal_omids)
-),
-refs AS (  -- works f cites (its predecessors), excluding self
-  SELECT DISTINCT cited_omid AS r FROM fpass
+-- Each lookup hits the sorted copy whose sort key it filters on, so parquet
+-- row groups prune instead of full-scanning the 38 GB edge file.
+refs AS (  -- works f cites (its predecessors), excluding self  [by citing_omid]
+  SELECT DISTINCT cited_omid AS r FROM citations_by_citing
   WHERE citing_omid IN (SELECT omid FROM focal_omids)
     AND cited_omid NOT IN (SELECT omid FROM focal_omids)
 ),
-a AS (     -- distinct citers of f
-  SELECT DISTINCT citing_omid AS c FROM fpass
+a AS (     -- distinct citers of f                               [by cited_omid]
+  SELECT DISTINCT citing_omid AS c FROM citations_by_cited
   WHERE cited_omid IN (SELECT omid FROM focal_omids)
     AND citing_omid NOT IN (SELECT omid FROM focal_omids)
 ),
-b AS (     -- distinct citers of any reference (second scan)
-  SELECT DISTINCT citing_omid AS c FROM citations
+b AS (     -- distinct citers of any reference                   [by cited_omid]
+  SELECT DISTINCT citing_omid AS c FROM citations_by_cited
   WHERE cited_omid IN (SELECT r FROM refs)
     AND citing_omid NOT IN (SELECT omid FROM focal_omids)
 ),

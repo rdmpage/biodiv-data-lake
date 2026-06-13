@@ -18,16 +18,21 @@ focal AS (SELECT DISTINCT d.doi, m.omid FROM dois d JOIN doi_omid m ON m.doi=d.d
 fyear AS (SELECT f.doi, min(TRY_CAST(left(w.pub_date,4) AS INT)) t0
           FROM focal f LEFT JOIN works_by_omid w ON w.omid=f.omid GROUP BY f.doi),
 focal_omids AS (SELECT DISTINCT omid FROM focal),
--- scan 1: every edge touching a focal omid (gives both citers and references)
-fpass AS (SELECT citing_omid, cited_omid FROM citations
-          WHERE cited_omid IN (SELECT omid FROM focal_omids) OR citing_omid IN (SELECT omid FROM focal_omids)),
-refs AS (SELECT DISTINCT f.doi, fp.cited_omid AS r FROM fpass fp JOIN focal f ON f.omid=fp.citing_omid
-         WHERE fp.cited_omid NOT IN (SELECT omid FROM focal_omids)),
-amap AS (SELECT DISTINCT f.doi, fp.citing_omid AS c FROM fpass fp JOIN focal f ON f.omid=fp.cited_omid
-         WHERE fp.citing_omid NOT IN (SELECT omid FROM focal_omids)),
+-- references of each focal (out-edges -> citations_by_citing); the redundant
+-- WHERE IN lets the sorted copy prune, the JOIN attributes back to the focal doi.
+refs AS (SELECT DISTINCT f.doi, c.cited_omid AS r
+         FROM citations_by_citing c JOIN focal f ON f.omid = c.citing_omid
+         WHERE c.citing_omid IN (SELECT omid FROM focal_omids)
+           AND c.cited_omid NOT IN (SELECT omid FROM focal_omids)),
+-- citers of each focal (in-edges -> citations_by_cited)
+amap AS (SELECT DISTINCT f.doi, c.citing_omid AS c
+         FROM citations_by_cited c JOIN focal f ON f.omid = c.cited_omid
+         WHERE c.cited_omid IN (SELECT omid FROM focal_omids)
+           AND c.citing_omid NOT IN (SELECT omid FROM focal_omids)),
 all_refs AS (SELECT DISTINCT r FROM refs),
--- scan 2: citers of any reference, attributed back to each focal paper
-refciters AS (SELECT c.citing_omid AS c, c.cited_omid AS r FROM citations c WHERE c.cited_omid IN (SELECT r FROM all_refs)),
+-- citers of any reference, attributed back to each focal paper (by cited_omid)
+refciters AS (SELECT c.citing_omid AS c, c.cited_omid AS r
+              FROM citations_by_cited c WHERE c.cited_omid IN (SELECT r FROM all_refs)),
 bmap AS (SELECT DISTINCT rf.doi, rc.c FROM refciters rc JOIN refs rf ON rf.r=rc.r
          WHERE rc.c NOT IN (SELECT omid FROM focal_omids)),
 univ AS (SELECT coalesce(a.doi,b.doi) doi, coalesce(a.c,b.c) c,

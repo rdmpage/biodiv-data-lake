@@ -53,7 +53,8 @@ fully reproducible from the scripts above.
 | Adapter views | ✅ `works`, `citations`, `citations_resolved` | clean columns incl. first-class `doi`/`omid` |
 | Precomputed stats | ✅ `work_stats` (101M), `doi_omid` (108M) | per-work in/out degree + DOI→OMID map; instant counts |
 | Sorted works | ✅ `works` (by doi), `works_by_omid` | record lookup by DOI **or** OMID in ~55 ms (was 19 s) |
-| Query macros | ✅ `citation_count()`, `work_by_doi()`, `work_by_omid()`, `cited_by()`, `cites()`, `related()` | see opencitations/README.md |
+| Sorted citations | ✅ `citations_by_cited`, `citations_by_citing` | edge-list lookups (`cited_by`/`cites`, CD) prune to ~1–2 s (was ~20 s); see opencitations/build_citations_sorted.sql |
+| Query macros | ✅ `citation_count()`, `work_by_doi()`, `work_by_omid()`, `cited_by()`, `cites()`, `related()` | edge-list macros now hit the sorted copies; see opencitations/README.md |
 | **BHL** export | ✅ ingested | 13 tables → `bhl/*.parquet` (incl. `pagename` 217M names); views `bhl_*`; see bhl/README.md |
 | **BHL ⋈ OpenCitations** | ✅ example | sandbox join `sandbox/bhl-oc-citations/` — BHL parts carry ~2.81M citations via external DOIs |
 | **Catalogue of Life** | ✅ ingested | `NameUsage` (7.85M) + `Reference` (2.03M) → `col/*.parquet`; views `col_name_usage`, `col_reference`; see col/README.md |
@@ -92,10 +93,11 @@ most-cited works) are in [`opencitations/README.md`](opencitations/README.md).
    - Counts: `work_stats` → `citation_count(doi)` and BHL batch joins in ~1–3 s.
    - Record lookup: `works`/`works_by_omid` are sorted Parquet copies, so lookup by
      DOI or OMID prunes to ~55 ms (was 19 s).
-   - *Still open:* edge-LIST queries (`cited_by()`, `cites()`, co-citation,
-     disruption) remain ~20 s scans of the 38 GB citations file. A citations copy
-     **sorted by `cited_omid`** (and one by `citing_omid`) would prune those to
-     sub-second — build when graph queries become routine.
+   - Edge-LIST queries (`cited_by()`, `cites()`, co-citation, disruption): ✅ done.
+     Two sorted copies (`citations_by_cited`, `citations_by_citing`, built by
+     `opencitations/build_citations_sorted.sql`) let those lookups prune to ~1–2 s
+     instead of ~20 s scans. (Broad co-citation over a highly-cited work still
+     touches many row groups, so `related()` on such works stays ~20 s.)
 2. **Bring in a taxonomic backbone** (GBIF taxonKey or COL IDs) as the reconciliation
    spine, then add occurrence/taxonomic datasets and map their columns onto
    **Darwin Core** via adapter views.
