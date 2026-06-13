@@ -27,3 +27,6 @@ opencitations/output_csv_*/
 # SQLite exports
 *.sqlite
 *.sqlite3
+
+# Local Claude Code config (machine-specific paths)
+.claude/
