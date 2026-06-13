@@ -174,24 +174,5 @@ CREATE OR REPLACE VIEW bhl_pagename AS
 SELECT NameConfirmed AS name, PageID AS page_id, NameBankID AS namebank_id
 FROM read_parquet('bhl/pagename.parquet');
 
--- =============================================================================
--- BHL <-> OpenCitations: citation impact via the DOI bridge (no export script)
--- =============================================================================
-
--- BHL part DOIs, flagged by kind. A part may have a BHL-minted (10.5962/p.*) AND
--- an external publisher DOI; external DOIs have far better OpenCitations coverage.
-CREATE OR REPLACE VIEW bhl_part_dois AS
-SELECT entity_id AS part_id, doi,
-       CASE WHEN doi LIKE '10.5962/p.%' THEN 'bhl_minted' ELSE 'external' END AS doi_kind
-FROM bhl_doi
-WHERE entity_type = 'Part';
-
--- Citation count per (part, doi), summed over duplicate OMID records (doi_omid
--- is not unique on doi). One row per part DOI; join bhl_part for title/metadata.
-CREATE OR REPLACE VIEW bhl_part_citations AS
-SELECT pd.part_id, pd.doi, pd.doi_kind,
-       sum(coalesce(s.n_cited_by, 0))::BIGINT AS n_cited_by
-FROM bhl_part_dois pd
-LEFT JOIN doi_omid   m ON m.doi  = pd.doi
-LEFT JOIN work_stats s ON s.omid = m.omid
-GROUP BY pd.part_id, pd.doi, pd.doi_kind;
+-- Joining BHL part DOIs to OpenCitations citation counts is kept as a worked
+-- example under sandbox/bhl-oc-citations/ rather than as catalog views.

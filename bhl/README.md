@@ -42,31 +42,15 @@ title ──< item ──< part
         part ──< partpage >── page ──< pagename   (names layer)
 ```
 
-## Citations: BHL ⋈ OpenCitations
+## DOIs
 
-A BHL part can carry **two** kinds of DOI: a BHL-minted one (`10.5962/p.*`) and
-an **external publisher DOI**. External DOIs have far better coverage in the open
-citation graph, so they are the right lens for impact:
+The `doi` table is a polymorphic bridge: `EntityType` is `Part` or `Title`,
+`EntityID` points at the corresponding row. A given entity can carry both a
+**BHL-minted** DOI (registrant prefix `10.5962/`, in patterns `10.5962/p.*`,
+`10.5962/t.*`, `10.5962/bhl.part.*`, `10.5962/bhl.title.*`) and an **external
+publisher** DOI. External DOIs have far better coverage in the open citation
+graph, so they are the better lens for citation impact.
 
-| part DOIs | count | in OpenCitations | total citations |
-|---|---:|---:|---:|
-| BHL-minted `10.5962/p.*` | 68,234 | 25% | 82,382 |
-| external publisher | 110,988 | 65% | **2,865,192** |
-
-```sql
--- citation counts per BHL part DOI (view does the doi_omid/work_stats join)
-SELECT doi_kind, count(*) part_dois,
-       sum(n_cited_by) total_citations
-FROM bhl_part_citations
-GROUP BY doi_kind;
-
--- most-cited BHL parts (use external DOIs), with titles
-SELECT pc.n_cited_by, p.title, p.container_title, p.date, pc.doi
-FROM bhl_part_citations pc
-JOIN bhl_part p ON p.part_id = pc.part_id
-WHERE pc.doi_kind = 'external'
-ORDER BY pc.n_cited_by DESC
-LIMIT 20;
-```
-
-This supersedes the one-off exporter in `../sandbox/bhl-citations/`.
+Worked example — joining BHL part DOIs to OpenCitations citation counts (via
+`doi_omid` / `work_stats`) — lives in
+[`../sandbox/bhl-oc-citations/`](../sandbox/bhl-oc-citations/).

@@ -55,7 +55,7 @@ fully reproducible from the scripts above.
 | Sorted works | ✅ `works` (by doi), `works_by_omid` | record lookup by DOI **or** OMID in ~55 ms (was 19 s) |
 | Query macros | ✅ `citation_count()`, `work_by_doi()`, `work_by_omid()`, `cited_by()`, `cites()`, `related()` | see opencitations/README.md |
 | **BHL** export | ✅ ingested | 13 tables → `bhl/*.parquet` (incl. `pagename` 217M names); views `bhl_*`; see bhl/README.md |
-| **BHL ⋈ OpenCitations** | ✅ working | `bhl_part_citations` view — BHL content has ~2.87M citations via external DOIs |
+| **BHL ⋈ OpenCitations** | ✅ example | sandbox join `sandbox/bhl-oc-citations/` — BHL parts carry ~2.81M citations via external DOIs |
 | Catalogue of Life | ⬜ source identified | ColDP export (see Sources) |
 | GBIF | ⬜ planned | predicate/SQL download, then re-partition Hive-style |
 | BOLD, BHL | ⬜ planned | |

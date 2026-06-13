@@ -8,5 +8,7 @@ inputs are version-controlled; generated artifacts (Parquet, SQLite, etc.) are
 gitignored. If an exploration produces something genuinely reusable, promote it
 out of `sandbox/` into the relevant dataset folder or the catalog.
 
-- `bhl-citations/` — offline citation stats for BHL's part-DOIs against
-  OpenCitations (precursor to having BHL itself in the lake).
+- `bhl-oc-citations/` — citation impact of BHL parts via an in-lake
+  `bhl ⋈ opencitations` join (the current approach).
+- `bhl-citations/` — offline SQLite precursor to the above, from before BHL was
+  in the lake (hit OpenCitations per-DOI). Superseded by `bhl-oc-citations/`.

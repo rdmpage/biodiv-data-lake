@@ -4,9 +4,11 @@
 OpenCitations API once per DOI and stashing results in SQLite. Here we do it
 offline against the OpenCitations parquet tables in the lake.
 
-> This is a *precursor*. The intended end state is BHL metadata as its own lake
-> dataset, so "BHL citations" becomes a plain `bhl ⋈ opencitations` join (via
-> `doi_omid` / `work_stats`) and the export script below is no longer needed.
+> This is a *precursor*, now **superseded by [`../bhl-oc-citations/`](../bhl-oc-citations/)**.
+> BHL is in the lake as its own dataset, so "BHL citations" is a plain
+> `bhl ⋈ opencitations` join (via `doi_omid` / `work_stats`) and the export
+> script below is no longer needed. Note also that this run used only the
+> `10.5962/p.*` part DOIs — BHL-minted DOIs span several `10.5962/*` patterns.
 
 ## Inputs
 
