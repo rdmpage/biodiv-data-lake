@@ -28,12 +28,14 @@ biodiv-data-lake/
 ├── local-data-lake-notes.md   <- architecture decisions / design notes
 ├── views.sql                  <- adapter views (the lake "catalog")
 ├── lake.duckdb                <- DuckDB catalog file (gitignored; rebuild from views.sql)
-└── opencitations/             <- first dataset (see opencitations/README.md)
-    ├── README.md              <- how the Parquet was built + example queries
-    ├── figsharefiles.sh       <- parallel downloader for the 165 Index zips
-    ├── figsharefiles.txt      <- source file-id list
-    ├── build_parquet.sh       <- Index zips  -> opencitations.parquet
-    └── build_meta_parquet.sh  <- Meta tarball -> opencitations_meta.parquet
+├── opencitations/             <- first dataset (see opencitations/README.md)
+│   ├── README.md              <- how the Parquet was built + example queries
+│   ├── figsharefiles.sh       <- parallel downloader for the 165 Index zips
+│   ├── figsharefiles.txt      <- source file-id list
+│   ├── build_parquet.sh       <- Index zips  -> opencitations.parquet
+│   └── build_meta_parquet.sh  <- Meta tarball -> opencitations_meta.parquet
+└── sandbox/                   <- one-off explorations / test cases (not core lake)
+    └── bhl-citations/         <- offline BHL citation stats vs OpenCitations
 ```
 
 Large data files (`*.parquet`, `*.tar.gz`, `*.zip`, `lake.duckdb`, logs) are

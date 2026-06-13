@@ -23,3 +23,7 @@ opencitations/output_csv_*/
 
 # Keep small reference lists that ARE worth versioning, e.g. figsharefiles.txt
 !figsharefiles.txt
+
+# SQLite exports
+*.sqlite
+*.sqlite3

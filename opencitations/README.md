@@ -196,6 +196,7 @@ GROUP BY author_sc;
 - `build_parquet.sh` — citations → Parquet
 - `build_meta_parquet.sh` — Meta → Parquet
 - `build_stats.sql` — builds `work_stats.parquet` + `doi_omid.parquet`
+- `build_works_sorted.sql` — builds the doi/omid-sorted `works_*` copies
 - `*.log` — build logs
 
 The figshare zips, `parts/`, and the extracted Meta CSVs were deleted after the
@@ -246,7 +247,8 @@ in ~5 s.
 ```sql
 -- e.g. CREATE TABLE bhl_dois AS
 --   SELECT DISTINCT lower(trim(column0)) AS doi
---   FROM read_csv('pdoi.txt', header=false, columns={'column0':'VARCHAR'});
+--   FROM read_csv('sandbox/bhl-citations/pdoi.txt', header=false,
+--                 columns={'column0':'VARCHAR'});
 
 -- per-DOI citation counts (DOI-level; 0 for absent / never cited)
 SELECT b.doi, sum(coalesce(s.n_cited_by, 0))::BIGINT AS times_cited
@@ -271,6 +273,9 @@ SELECT count(*)                          AS dois,
        sum(cited_by)::BIGINT             AS total_citations
 FROM per_doi;
 ```
+
+A worked example over BHL's 68 k DOIs (plus a generic DOI-list → SQLite
+exporter for offline use) lives in `sandbox/bhl-citations/`.
 
 ### 3. Citation-graph queries
 
