@@ -31,6 +31,9 @@ opencitations/output_csv_*/
 *.sqlite
 *.sqlite3
 
+# Bulk/derived TSV (sources and parser outputs are reproducible; keep scripts)
+*.tsv
+
 # Catalogue of Life ColDP export — bulk files extracted from export.zip
 # (reproducible; export.zip itself is ignored by *.zip above). Keep README.md.
 col/*.tsv
