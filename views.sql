@@ -130,3 +130,68 @@ CREATE OR REPLACE MACRO related(p_doi) AS TABLE
   FROM cocite cc
   LEFT JOIN works_by_omid w ON w.omid = cc.omid
   ORDER BY cc.co_citations DESC;
+
+-- =============================================================================
+-- BHL (Biodiversity Heritage Library) — adapter views over bhl/*.parquet
+-- Source: BHL Open Data relational export. Raw columns kept; these rename to
+-- snake_case canonical names. Build with bhl/build_parquet.sh.
+-- =============================================================================
+
+-- Bibliographic hierarchy: title (journal/book) -> item (volume) -> part (article)
+CREATE OR REPLACE VIEW bhl_title AS
+SELECT TitleID AS title_id, FullTitle AS full_title, ShortTitle AS short_title,
+       PublicationDetails AS publication_details,
+       StartYear AS start_year, EndYear AS end_year,
+       LanguageCode AS language_code, TitleURL AS title_url, MARCBibID AS marc_bib_id
+FROM read_parquet('bhl/title.parquet');
+
+CREATE OR REPLACE VIEW bhl_item AS
+SELECT ItemID AS item_id, TitleID AS title_id, BarCode AS barcode,
+       VolumeInfo AS volume_info, Year AS year, ItemURL AS item_url,
+       ItemPDFURL AS item_pdf_url, InstitutionName AS institution_name
+FROM read_parquet('bhl/item.parquet');
+
+CREATE OR REPLACE VIEW bhl_part AS
+SELECT PartID AS part_id, ItemID AS item_id, SegmentType AS segment_type,
+       Title AS title, ContainerTitle AS container_title,
+       Volume AS volume, Series AS series, Issue AS issue, Date AS date,
+       PageRange AS page_range, StartPageID AS start_page_id,
+       SegmentUrl AS segment_url, ContributorName AS contributor_name
+FROM read_parquet('bhl/part.parquet');
+
+-- Polymorphic DOI bridge (EntityType in {Part, Title}); DOIs exposed lowercase
+CREATE OR REPLACE VIEW bhl_doi AS
+SELECT EntityType AS entity_type, EntityID AS entity_id, lower(DOI) AS doi
+FROM read_parquet('bhl/doi.parquet');
+
+-- Names layer: taxonomic names found on pages
+CREATE OR REPLACE VIEW bhl_page AS
+SELECT PageID AS page_id, ItemID AS item_id, Year AS year,
+       Volume AS volume, PageNumber AS page_number, PageTypeName AS page_type
+FROM read_parquet('bhl/page.parquet');
+
+CREATE OR REPLACE VIEW bhl_pagename AS
+SELECT NameConfirmed AS name, PageID AS page_id, NameBankID AS namebank_id
+FROM read_parquet('bhl/pagename.parquet');
+
+-- =============================================================================
+-- BHL <-> OpenCitations: citation impact via the DOI bridge (no export script)
+-- =============================================================================
+
+-- BHL part DOIs, flagged by kind. A part may have a BHL-minted (10.5962/p.*) AND
+-- an external publisher DOI; external DOIs have far better OpenCitations coverage.
+CREATE OR REPLACE VIEW bhl_part_dois AS
+SELECT entity_id AS part_id, doi,
+       CASE WHEN doi LIKE '10.5962/p.%' THEN 'bhl_minted' ELSE 'external' END AS doi_kind
+FROM bhl_doi
+WHERE entity_type = 'Part';
+
+-- Citation count per (part, doi), summed over duplicate OMID records (doi_omid
+-- is not unique on doi). One row per part DOI; join bhl_part for title/metadata.
+CREATE OR REPLACE VIEW bhl_part_citations AS
+SELECT pd.part_id, pd.doi, pd.doi_kind,
+       sum(coalesce(s.n_cited_by, 0))::BIGINT AS n_cited_by
+FROM bhl_part_dois pd
+LEFT JOIN doi_omid   m ON m.doi  = pd.doi
+LEFT JOIN work_stats s ON s.omid = m.omid
+GROUP BY pd.part_id, pd.doi, pd.doi_kind;

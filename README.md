@@ -28,14 +28,16 @@ biodiv-data-lake/
 ├── local-data-lake-notes.md   <- architecture decisions / design notes
 ├── views.sql                  <- adapter views (the lake "catalog")
 ├── lake.duckdb                <- DuckDB catalog file (gitignored; rebuild from views.sql)
-├── opencitations/             <- first dataset (see opencitations/README.md)
+├── opencitations/             <- dataset: the open citation graph + works metadata
 │   ├── README.md              <- how the Parquet was built + example queries
 │   ├── figsharefiles.sh       <- parallel downloader for the 165 Index zips
-│   ├── figsharefiles.txt      <- source file-id list
 │   ├── build_parquet.sh       <- Index zips  -> opencitations.parquet
 │   └── build_meta_parquet.sh  <- Meta tarball -> opencitations_meta.parquet
+├── bhl/                       <- dataset: Biodiversity Heritage Library export
+│   ├── README.md              <- tables, model, BHL⋈OpenCitations citations
+│   └── build_parquet.sh       <- BHL .txt.gz dumps -> bhl/*.parquet
 └── sandbox/                   <- one-off explorations / test cases (not core lake)
-    └── bhl-citations/         <- offline BHL citation stats vs OpenCitations
+    └── bhl-citations/         <- offline BHL citation stats (superseded by bhl/)
 ```
 
 Large data files (`*.parquet`, `*.tar.gz`, `*.zip`, `lake.duckdb`, logs) are
@@ -52,6 +54,8 @@ fully reproducible from the scripts above.
 | Precomputed stats | ✅ `work_stats` (101M), `doi_omid` (108M) | per-work in/out degree + DOI→OMID map; instant counts |
 | Sorted works | ✅ `works` (by doi), `works_by_omid` | record lookup by DOI **or** OMID in ~55 ms (was 19 s) |
 | Query macros | ✅ `citation_count()`, `work_by_doi()`, `work_by_omid()`, `cited_by()`, `cites()`, `related()` | see opencitations/README.md |
+| **BHL** export | ✅ ingested | 13 tables → `bhl/*.parquet` (incl. `pagename` 217M names); views `bhl_*`; see bhl/README.md |
+| **BHL ⋈ OpenCitations** | ✅ working | `bhl_part_citations` view — BHL content has ~2.87M citations via external DOIs |
 | Catalogue of Life | ⬜ source identified | ColDP export (see Sources) |
 | GBIF | ⬜ planned | predicate/SQL download, then re-partition Hive-style |
 | BOLD, BHL | ⬜ planned | |
