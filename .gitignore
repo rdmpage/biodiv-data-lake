@@ -33,6 +33,8 @@ opencitations/output_csv_*/
 
 # Bulk/derived TSV (sources and parser outputs are reproducible; keep scripts)
 *.tsv
+# ...but keep small hand-curated source TSVs that make sandbox examples reproducible
+!sandbox/bold-citations/datadoi_cites_workdoi.tsv
 
 # Catalogue of Life ColDP export — bulk files extracted from export.zip
 # (reproducible; export.zip itself is ignored by *.zip above). Keep README.md.
