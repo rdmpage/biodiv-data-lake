@@ -47,5 +47,8 @@ col/reference.jsonl
 ror/*.csv
 ror/*.json
 
+# Open Funder Registry source RDF (reproducible; ofr/*.tsv/*.parquet ignored above)
+ofr/*.rdf
+
 # Local Claude Code config (machine-specific paths)
 .claude/

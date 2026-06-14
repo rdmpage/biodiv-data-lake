@@ -368,3 +368,24 @@ SELECT replace(id, 'https://ror.org/', '')                  AS ror_id,
        nullif("links.type.website", '')                     AS website,
        nullif("links.type.wikipedia", '')                   AS wikipedia
 FROM read_parquet('ror/ror.parquet');
+
+-- =============================================================================
+-- Open Funder Registry (FundRef) — view over ofr/ofr_funder.parquet
+-- Source: Crossref Open Funder Registry RDF (SKOS). Funder backbone. Both id
+-- forms kept: fundref_id (bare, joins ror.fundref_id) and funder_doi
+-- (10.13039/<id>, the form Crossref uses). broader_id = parent funder (hierarchy).
+-- =============================================================================
+CREATE OR REPLACE VIEW ofr_funder AS
+SELECT fundref_id,
+       funder_doi,
+       name,
+       nullif(aliases, '')      AS aliases,
+       nullif(country, '')      AS country,
+       nullif(region, '')       AS region,
+       nullif(body_type, '')    AS body_type,
+       nullif(body_subtype, '') AS body_subtype,
+       nullif(tax_id, '')       AS tax_id,
+       nullif(status, '')       AS status,
+       nullif(broader_id, '')   AS broader_id,
+       created, modified
+FROM read_parquet('ofr/ofr_funder.parquet');
