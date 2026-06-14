@@ -389,3 +389,37 @@ SELECT fundref_id,
        nullif(broader_id, '')   AS broader_id,
        created, modified
 FROM read_parquet('ofr/ofr_funder.parquet');
+
+-- =============================================================================
+-- Crossref (REST API, fetched on demand per DOI) — views over crossref/*.parquet
+-- crossref/fetch.php caches works, crossref/build.php flattens them. Enriches DOIs
+-- the lake already cares about with what OpenCitations lacks: funders (-> ofr_funder
+-- / ror via funder_doi/fundref_id), author ORCIDs (-> orcid_person), references.
+-- =============================================================================
+CREATE OR REPLACE VIEW crossref_work AS
+SELECT lower(doi) AS doi, type, title,
+       nullif(container_title, '') AS container_title,
+       nullif(publisher, '')       AS publisher,
+       nullif(issn, '')            AS issn,
+       TRY_CAST(year AS INT)       AS year,
+       TRY_CAST(is_referenced_by_count AS INT) AS crossref_cited_by,
+       TRY_CAST(n_authors AS INT)    AS n_authors,
+       TRY_CAST(n_references AS INT) AS n_references,
+       TRY_CAST(n_funders AS INT)    AS n_funders,
+       nullif(license, '') AS license, nullif(url, '') AS url, nullif(abstract, '') AS abstract
+FROM read_parquet('crossref/crossref_work.parquet');
+
+CREATE OR REPLACE VIEW crossref_author AS
+SELECT lower(doi) AS doi, TRY_CAST(seq AS INT) AS seq, given, family,
+       nullif(orcid, '') AS orcid, nullif(affiliation, '') AS affiliation
+FROM read_parquet('crossref/crossref_author.parquet');
+
+CREATE OR REPLACE VIEW crossref_funder AS
+SELECT lower(doi) AS doi, nullif(funder_doi, '') AS funder_doi,
+       nullif(fundref_id, '') AS fundref_id, name, nullif(awards, '') AS awards
+FROM read_parquet('crossref/crossref_funder.parquet');
+
+CREATE OR REPLACE VIEW crossref_reference AS
+SELECT lower(doi) AS doi, nullif(key, '') AS key,
+       nullif(cited_doi, '') AS cited_doi, nullif(unstructured, '') AS unstructured
+FROM read_parquet('crossref/crossref_reference.parquet');

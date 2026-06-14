@@ -50,5 +50,9 @@ ror/*.json
 # Open Funder Registry source RDF (reproducible; ofr/*.tsv/*.parquet ignored above)
 ofr/*.rdf
 
+# Crossref API cache + logs (re-fetchable; *.tsv/*.parquet ignored above)
+crossref/cache/
+crossref/failed.txt
+
 # Local Claude Code config (machine-specific paths)
 .claude/
