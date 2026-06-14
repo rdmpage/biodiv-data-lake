@@ -423,3 +423,13 @@ CREATE OR REPLACE VIEW crossref_reference AS
 SELECT lower(doi) AS doi, nullif(key, '') AS key,
        nullif(cited_doi, '') AS cited_doi, nullif(unstructured, '') AS unstructured
 FROM read_parquet('crossref/crossref_reference.parquet');
+
+-- =============================================================================
+-- DataCite DOI list — view over datacite/datacite_doi.parquet
+-- Just the DOI index (doi, state, client_id, updated) from the Public Data File's
+-- per-month CSVs — NOT the metadata. client_id = the data centre (e.g. BOLD's).
+-- source = updated_YYYY-MM folder, for finding a DOI's JSONL metadata on demand.
+-- =============================================================================
+CREATE OR REPLACE VIEW datacite_doi AS
+SELECT doi, state, client_id, updated, source
+FROM read_parquet('datacite/datacite_doi.parquet');

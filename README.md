@@ -66,6 +66,7 @@ fully reproducible from the scripts above.
 | **ROR** | ✅ ingested | 127,138 organisations → `ror/ror.parquet`; view `ror` (ror_id + grid/isni/wikidata crosswalks); org backbone; see ror/README.md |
 | **Open Funder Registry** | ✅ ingested | 45,700 funders → `ofr/ofr_funder.parquet`; view `ofr_funder`; `fundref_id` ⋈ `ror.fundref_id` (9,556); see ofr/README.md |
 | **Crossref** | ✅ on-demand | per-DOI REST fetch + cache → views `crossref_work/author/funder/reference`; enriches lake DOIs with funders/ORCIDs/refs; see crossref/README.md |
+| **DataCite** | ✅ DOI index | 115.7M DOIs (doi/state/client_id) → `datacite/datacite_doi.parquet`; view `datacite_doi`; CSV-only (no 615 GB JSONL); see datacite/README.md |
 | GBIF | ⬜ planned | predicate/SQL download, then re-partition Hive-style |
 | BOLD, BHL | ⬜ planned | |
 

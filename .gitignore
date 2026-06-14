@@ -54,5 +54,8 @@ ofr/*.rdf
 crossref/cache/
 crossref/failed.txt
 
+# DataCite Public Data File tar (32 GB; tsv/parquet ignored above)
+datacite/*.tar
+
 # Local Claude Code config (machine-specific paths)
 .claude/
