@@ -289,3 +289,54 @@ UNION ALL
 SELECT orcid, 'credit', credit
 FROM read_parquet('orcid/orcid_person.parquet')
 WHERE coalesce(credit, '') <> '';
+
+-- =============================================================================
+-- Zenodo (metadata dump, filtered to biosyslit/bionomia) — views over zenodo/*.parquet
+-- Built by zenodo/build_parquet.sh. Plazi treatments / figures / journals.
+-- doi is lowercased so record.doi and related.doi join doi_omid / bhl_doi /
+-- col_reference; creator.orcid joins orcid_person.
+-- =============================================================================
+
+-- One row per Zenodo record (treatment, article, figure, dataset, ...).
+CREATE OR REPLACE VIEW zenodo_record AS
+SELECT TRY_CAST(zenodo_id AS BIGINT)  AS zenodo_id,
+       doi,
+       doi_is_zenodo = 'true'         AS doi_is_zenodo,
+       version_of,
+       resource_type,
+       nullif(resource_subtype, '')   AS resource_subtype,
+       title,
+       date,
+       TRY_CAST(year AS INT)          AS year,
+       publisher,
+       nullif(license, '')            AS license,
+       open_access = 'true'           AS open_access,
+       community,
+       nullif(issn, '')               AS issn,
+       nullif(plazi_lsid, '')         AS plazi_lsid
+FROM read_parquet('zenodo/zenodo_record.parquet');
+
+-- Creators (ordered by seq); orcid joins orcid_person when present.
+CREATE OR REPLACE VIEW zenodo_creator AS
+SELECT TRY_CAST(zenodo_id AS BIGINT) AS zenodo_id,
+       TRY_CAST(seq AS INT) AS seq, name, given, family,
+       nullif(orcid, '') AS orcid, affiliation
+FROM read_parquet('zenodo/zenodo_creator.parquet');
+
+-- Polymorphic related identifiers (IsPartOf, HasPart, Cites, IsVersionOf, ...).
+-- doi is the lowercased value when id_type = 'DOI'.
+CREATE OR REPLACE VIEW zenodo_related AS
+SELECT TRY_CAST(zenodo_id AS BIGINT) AS zenodo_id,
+       relation, id_type, nullif(resource_type, '') AS resource_type,
+       value, nullif(doi, '') AS doi
+FROM read_parquet('zenodo/zenodo_related.parquet');
+
+-- Subjects / keywords (incl. taxonomic ladder).
+CREATE OR REPLACE VIEW zenodo_subject AS
+SELECT TRY_CAST(zenodo_id AS BIGINT) AS zenodo_id, subject
+FROM read_parquet('zenodo/zenodo_subject.parquet');
+
+-- Descriptions; for treatments the 'Abstract' is the full treatment text.
+CREATE OR REPLACE VIEW zenodo_description AS
+SELECT TRY_CAST(zenodo_id AS BIGINT) AS zenodo_id, description_type, text
+FROM read_parquet('zenodo/zenodo_description.parquet');

@@ -61,6 +61,8 @@ fully reproducible from the scripts above.
 | **COL ⋈ BHL** | ✅ working | 12,963 COL reference DOIs are in BHL; 94,501 names link to a BHL-held original description |
 | **ORCID** | ✅ ingested | summaries → `orcid/*.parquet` — 26.08M persons, 117.46M work-DOI rows; views `orcid_person`, `orcid_work`, `orcid_name`; see orcid/README.md |
 | **ORCID ⋈ OpenCitations** | ✅ working | 38.8M distinct ORCID work DOIs (84%) resolve into OpenCitations — author → DOI → citations |
+| **Zenodo** | ✅ ingested (biosyslit/bionomia) | 5 tables → `zenodo/*.parquet` — 2.14M records (697k treatments, 800k figures, 492k articles); views `zenodo_*`; see zenodo/README.md |
+| **Zenodo ⋈ lake** | ✅ working | 21,188 creator ORCIDs resolve to `orcid_person`; 43,914 treatment-source article DOIs are in OpenCitations |
 | GBIF | ⬜ planned | predicate/SQL download, then re-partition Hive-style |
 | BOLD, BHL | ⬜ planned | |
 
