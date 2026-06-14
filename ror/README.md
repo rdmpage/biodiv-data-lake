@@ -8,7 +8,9 @@ is in `../views.sql`.
 
 ## Source
 
-<!-- @rpage: add dump version/date notes if useful. -->
+ROR records from https://doi.org/10.5281/zenodo.20512981, the DOI for all the versions is https://doi.org/10.5281/zenodo.6347574
+
+- Research Organization Registry. (2026). ROR Data (v2.8) [Data set]. Zenodo. https://doi.org/10.5281/zenodo.20512981
 
 - ROR data dump on Zenodo, community `ror-data`: record **20512981** = **v2.8**
   (`v2.8-2026-06-02-ror-data.zip`), CC0. The zip holds both JSON and CSV; we use
