@@ -251,3 +251,41 @@ SELECT "col:ID"                   AS usage_id,
        "col:order"   AS "order",  "col:family" AS family, "col:genus" AS genus,
        "col:link"                 AS link
 FROM read_parquet('col/NameUsage.parquet');
+
+-- =============================================================================
+-- ORCID (public data file summaries) — adapter views over orcid/*.parquet
+-- Built by orcid/build_parquet.sh from the parser output. ORCID is the lake's
+-- author backbone: person <-> works (DOI) <-> affiliations.
+-- =============================================================================
+
+-- One row per researcher; look up by orcid, or filter on name.
+CREATE OR REPLACE VIEW orcid_person AS
+SELECT orcid,
+       given                   AS given_name,
+       family                  AS family_name,
+       nullif(credit,  '')     AS credit_name,
+       nullif(country, '')     AS country,
+       TRY_CAST(n_emp  AS INT) AS n_employments,
+       TRY_CAST(n_work AS INT) AS n_works,
+       TRY_CAST(n_doi  AS INT) AS n_work_dois,
+       trim(coalesce(given, '') || ' ' || coalesce(family, '')) AS full_name
+FROM read_parquet('orcid/orcid_person.parquet');
+
+-- One row per (researcher, work DOI); doi is lowercased so it joins doi_omid /
+-- bhl_doi / col_reference. A DOI recurs across co-authors -> count(DISTINCT doi).
+CREATE OR REPLACE VIEW orcid_work AS
+SELECT orcid, doi, title, type AS work_type
+FROM read_parquet('orcid/orcid_work.parquet');
+
+-- Name -> ORCID lookup. One row per (orcid, name_type, name). name_type is
+-- 'primary' (given + family) or 'credit' (self-chosen display name). NOTE: ORCID
+-- other-names are not yet captured (sparse in the data; would need a re-parse).
+CREATE OR REPLACE VIEW orcid_name AS
+SELECT orcid, 'primary' AS name_type,
+       trim(coalesce(given, '') || ' ' || coalesce(family, '')) AS name
+FROM read_parquet('orcid/orcid_person.parquet')
+WHERE coalesce(given, '') <> '' OR coalesce(family, '') <> ''
+UNION ALL
+SELECT orcid, 'credit', credit
+FROM read_parquet('orcid/orcid_person.parquet')
+WHERE coalesce(credit, '') <> '';
