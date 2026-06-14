@@ -38,10 +38,17 @@ The parse is single-threaded over ~20M records — expect a few hours. Generated
 | `orcid_person` | one row per researcher | 26,078,951 | `orcid, given_name, family_name, credit_name, country, n_employments, n_works, n_work_dois, full_name` |
 | `orcid_work` | one row per (researcher, work DOI) | 117,458,062 | `orcid, doi, title, work_type` |
 | `orcid_name` | one row per (orcid, name_type, name) | 25,937,127 | `orcid, name_type, name` — for **name → ORCID** lookup |
+| `orcid_affiliation` | one per (researcher, affiliation org) | 25,063,901 | `orcid, affiliation_type, org_name, city, country, org_id, org_source` |
+| `orcid_org_ror` | one per (researcher, ROR org) | 8,850,982 | `orcid, ror_id` — researcher → ROR (ROR-direct + GRID/FundRef crosswalk) |
 
 `orcid_work.doi` is lowercased so it joins `doi_omid.doi` (OpenCitations),
 `bhl_doi.doi`, and `col_reference.doi`. `orcid_name` unions the `primary`
 (given + family) and `credit` name forms; see caveats on `other-names`.
+`orcid_org_ror` gives an **exact researcher → organisation** edge (~6.9M
+researchers) by resolving affiliation org ids to ROR — `org_source='ROR'`
+direct, `'GRID'` via `ror.grid_id`, `'FUNDREF'` via `ror.fundref_id`; RINGGOLD
+(the largest source) has no ROR crosswalk yet. 19.2M of 25.1M affiliations carry
+a disambiguated org id.
 
 ## Model & the seam
 

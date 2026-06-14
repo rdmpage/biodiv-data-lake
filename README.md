@@ -59,8 +59,9 @@ fully reproducible from the scripts above.
 | **BHL ⋈ OpenCitations** | ✅ example | sandbox join `sandbox/bhl-oc-citations/` — BHL parts carry ~2.81M citations via external DOIs |
 | **Catalogue of Life** | ✅ ingested | `NameUsage` (7.85M) + `Reference` (2.03M) → `col/*.parquet`; views `col_name_usage`, `col_reference`; see col/README.md |
 | **COL ⋈ BHL** | ✅ working | 12,963 COL reference DOIs are in BHL; 94,501 names link to a BHL-held original description |
-| **ORCID** | ✅ ingested | summaries → `orcid/*.parquet` — 26.08M persons, 117.46M work-DOI rows; views `orcid_person`, `orcid_work`, `orcid_name`; see orcid/README.md |
+| **ORCID** | ✅ ingested | summaries → `orcid/*.parquet` — 26.08M persons, 117.46M work-DOI rows, 25.06M affiliations; views `orcid_person/work/name/affiliation`; see orcid/README.md |
 | **ORCID ⋈ OpenCitations** | ✅ working | 38.8M distinct ORCID work DOIs (84%) resolve into OpenCitations — author → DOI → citations |
+| **ORCID ⋈ ROR** | ✅ working | `orcid_org_ror` — 6.94M researchers resolved to a ROR org (ROR-direct + GRID/FundRef crosswalk) |
 | **Zenodo** | ✅ ingested (biosyslit/bionomia) | 5 tables → `zenodo/*.parquet` — 2.14M records (697k treatments, 800k figures, 492k articles); views `zenodo_*`; see zenodo/README.md |
 | **Zenodo ⋈ lake** | ✅ working | 21,188 creator ORCIDs resolve to `orcid_person`; 43,914 treatment-source article DOIs are in OpenCitations |
 | **ROR** | ✅ ingested | 127,138 organisations → `ror/ror.parquet`; view `ror` (ror_id + grid/isni/wikidata crosswalks); org backbone; see ror/README.md |

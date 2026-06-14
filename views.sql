@@ -290,6 +290,26 @@ SELECT orcid, 'credit', credit
 FROM read_parquet('orcid/orcid_person.parquet')
 WHERE coalesce(credit, '') <> '';
 
+-- Affiliations (employments, educations, qualifications, …) with the organisation
+-- and its disambiguated id + source (ROR / GRID / FUNDREF / RINGGOLD / …).
+CREATE OR REPLACE VIEW orcid_affiliation AS
+SELECT orcid, affiliation_type, org_name,
+       nullif(city, '') AS city, nullif(country, '') AS country,
+       nullif(org_id, '') AS org_id, nullif(org_source, '') AS org_source
+FROM read_parquet('orcid/orcid_affiliation.parquet');
+
+-- Resolved researcher -> ROR organisation: ROR ids direct, GRID via ror.grid_id,
+-- FundRef via ror.fundref_id. One row per (orcid, ror_id). ~6.9M researchers.
+CREATE OR REPLACE VIEW orcid_org_ror AS
+SELECT DISTINCT orcid, replace(org_id, 'https://ror.org/', '') AS ror_id
+FROM orcid_affiliation WHERE org_source = 'ROR'
+UNION
+SELECT DISTINCT a.orcid, r.ror_id
+FROM orcid_affiliation a JOIN ror r ON r.grid_id = a.org_id WHERE a.org_source = 'GRID'
+UNION
+SELECT DISTINCT a.orcid, r.ror_id
+FROM orcid_affiliation a JOIN ror r ON r.fundref_id = a.org_id WHERE a.org_source = 'FUNDREF';
+
 -- =============================================================================
 -- Zenodo (metadata dump, filtered to biosyslit/bionomia) — views over zenodo/*.parquet
 -- Built by zenodo/build_parquet.sh. Plazi treatments / figures / journals.
