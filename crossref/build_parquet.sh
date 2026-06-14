@@ -17,7 +17,7 @@ echo "== flattening cache -> TSV"
 php crossref/build.php
 
 echo "== TSV -> Parquet"
-for t in work author funder reference; do
+for t in work author funder reference relation; do
   "$DUCKDB" -c "
     COPY (SELECT * FROM read_csv('crossref/crossref_${t}.tsv', delim='\t', header=true, quote='', all_varchar=true))
       TO 'crossref/crossref_${t}.parquet' (FORMAT parquet, COMPRESSION zstd);"

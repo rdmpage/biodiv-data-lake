@@ -19,11 +19,13 @@ $w = fopen("$out/crossref_work.tsv", 'w');
 $a = fopen("$out/crossref_author.tsv", 'w');
 $f = fopen("$out/crossref_funder.tsv", 'w');
 $r = fopen("$out/crossref_reference.tsv", 'w');
+$x = fopen("$out/crossref_relation.tsv", 'w');
 row($w, ['doi','type','title','container_title','publisher','issn','year',
          'is_referenced_by_count','n_authors','n_references','n_funders','license','url','abstract']);
 row($a, ['doi','seq','given','family','orcid','affiliation']);
 row($f, ['doi','funder_doi','fundref_id','name','awards']);
 row($r, ['doi','key','cited_doi','unstructured']);
+row($x, ['doi','relation_type','target_type','target']);
 
 $it = new RecursiveIteratorIterator(
         new RecursiveDirectoryIterator($cache, FilesystemIterator::SKIP_DOTS));
@@ -60,6 +62,19 @@ foreach ($it as $file) {
     foreach ($refs as $ref) {
         row($r, [$doi, $ref->key ?? '', isset($ref->DOI) ? strtolower($ref->DOI) : '',
                  $ref->unstructured ?? '']);
+    }
+    // relation: an object keyed by relation type (is-preprint-of, has-preprint,
+    // is-supplement-to, ...), each a list of {id-type, id}. Typed edge between works.
+    if (isset($o->relation) && is_object($o->relation)) {
+        foreach ($o->relation as $reltype => $entries) {
+            if (!is_array($entries)) { continue; }
+            foreach ($entries as $e) {
+                $tt = isset($e->{'id-type'}) ? $e->{'id-type'} : '';
+                $tid = isset($e->id) ? $e->id : '';
+                if (strtolower($tt) === 'doi') { $tid = strtolower($tid); }
+                row($x, [$doi, $reltype, $tt, $tid]);
+            }
+        }
     }
     $n++;
 }

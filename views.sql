@@ -424,6 +424,13 @@ SELECT lower(doi) AS doi, nullif(key, '') AS key,
        nullif(cited_doi, '') AS cited_doi, nullif(unstructured, '') AS unstructured
 FROM read_parquet('crossref/crossref_reference.parquet');
 
+-- Typed relations between works (relation_type e.g. is-preprint-of, has-preprint,
+-- is-supplement-to, is-version-of). target is a DOI (lowercased) when target_type='doi'.
+-- Connects preprints <-> final papers, supplements, versions, etc.
+CREATE OR REPLACE VIEW crossref_relation AS
+SELECT lower(doi) AS doi, relation_type, target_type, target
+FROM read_parquet('crossref/crossref_relation.parquet');
+
 -- =============================================================================
 -- DataCite DOI list — view over datacite/datacite_doi.parquet
 -- Just the DOI index (doi, state, client_id, updated) from the Public Data File's

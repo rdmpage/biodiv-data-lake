@@ -60,6 +60,7 @@ time) use `php crossref/fetch.php --force <list>`. `failed.txt` logs not-found
 | `crossref_author` | one per (DOI, author) | `doi, seq, given, family, orcid, affiliation` |
 | `crossref_funder` | one per (DOI, funder) | `doi, funder_doi, fundref_id, name, awards` |
 | `crossref_reference` | one per cited reference | `doi, key, cited_doi, unstructured` |
+| `crossref_relation` | one per typed relation | `doi, relation_type, target_type, target` |
 
 ## The seams
 
@@ -67,6 +68,9 @@ time) use `php crossref/fetch.php --force <list>`. `failed.txt` logs not-found
 - `crossref_funder.funder_doi` → `ofr_funder.funder_doi`; `fundref_id` → `ror.fundref_id` (funders/orgs).
 - `crossref_work.doi` / `crossref_reference.cited_doi` → `doi_omid` (cross-check / fill OpenCitations).
 - `crossref_work.doi` ← `zenodo_related` `IsPartOf` (the article behind a treatment).
+- `crossref_relation` — typed work↔work edges (`has-preprint`/`is-preprint-of`,
+  `is-supplement-to`, `is-version-of`, …); links **preprints ↔ final papers**
+  (valuable when the published version is paywalled), supplements, and versions.
 
 ## Caveats
 
