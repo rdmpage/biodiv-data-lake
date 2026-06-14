@@ -340,3 +340,31 @@ FROM read_parquet('zenodo/zenodo_subject.parquet');
 CREATE OR REPLACE VIEW zenodo_description AS
 SELECT TRY_CAST(zenodo_id AS BIGINT) AS zenodo_id, description_type, text
 FROM read_parquet('zenodo/zenodo_description.parquet');
+
+-- =============================================================================
+-- ROR (Research Organization Registry) — view over ror/ror.parquet
+-- Source: ROR data dump (Zenodo), v2 CSV. Organisation backbone; ror_id is a
+-- shared identifier (ORCID affiliations, Crossref funders, Wikidata, ...). The
+-- CSV columns are dot-flattened; this renames the ones we use. Multi-valued
+-- fields (aliases, types) are ';'-separated.
+-- =============================================================================
+CREATE OR REPLACE VIEW ror AS
+SELECT replace(id, 'https://ror.org/', '')                  AS ror_id,
+       id                                                   AS ror_url,
+       "names.types.ror_display"                            AS name,
+       nullif("names.types.acronym", '')                    AS acronym,
+       nullif("names.types.alias", '')                      AS aliases,
+       types,
+       status,
+       TRY_CAST(established AS INT)                          AS established,
+       nullif("locations.geonames_details.country_code", '') AS country_code,
+       nullif("locations.geonames_details.country_name", '') AS country_name,
+       TRY_CAST("locations.geonames_details.lat" AS DOUBLE)  AS lat,
+       TRY_CAST("locations.geonames_details.lng" AS DOUBLE)  AS lng,
+       nullif("external_ids.type.grid.preferred", '')       AS grid_id,
+       nullif("external_ids.type.isni.preferred", '')       AS isni_id,
+       nullif("external_ids.type.wikidata.preferred", '')   AS wikidata_id,
+       nullif("external_ids.type.fundref.preferred", '')    AS fundref_id,
+       nullif("links.type.website", '')                     AS website,
+       nullif("links.type.wikipedia", '')                   AS wikipedia
+FROM read_parquet('ror/ror.parquet');

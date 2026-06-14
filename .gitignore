@@ -43,5 +43,9 @@ col/reference.bib
 col/reference.json
 col/reference.jsonl
 
+# ROR data dump — bulk files extracted from the zip (zip itself ignored by *.zip)
+ror/*.csv
+ror/*.json
+
 # Local Claude Code config (machine-specific paths)
 .claude/

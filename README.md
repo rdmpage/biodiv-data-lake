@@ -63,6 +63,7 @@ fully reproducible from the scripts above.
 | **ORCID ⋈ OpenCitations** | ✅ working | 38.8M distinct ORCID work DOIs (84%) resolve into OpenCitations — author → DOI → citations |
 | **Zenodo** | ✅ ingested (biosyslit/bionomia) | 5 tables → `zenodo/*.parquet` — 2.14M records (697k treatments, 800k figures, 492k articles); views `zenodo_*`; see zenodo/README.md |
 | **Zenodo ⋈ lake** | ✅ working | 21,188 creator ORCIDs resolve to `orcid_person`; 43,914 treatment-source article DOIs are in OpenCitations |
+| **ROR** | ✅ ingested | 127,138 organisations → `ror/ror.parquet`; view `ror` (ror_id + grid/isni/wikidata crosswalks); org backbone; see ror/README.md |
 | GBIF | ⬜ planned | predicate/SQL download, then re-partition Hive-style |
 | BOLD, BHL | ⬜ planned | |
 
