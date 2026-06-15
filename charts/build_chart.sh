@@ -22,4 +22,27 @@ mkdir -p charts/out
 rows=$(cat views.sql "charts/$r.sql" | "$DUCKDB" lake.duckdb -json)
 jq --argjson rows "$rows" 'walk(if . == "@@ROWS@@" then $rows else . end)' \
    "charts/$r.vl.json" > "charts/out/$r.vl.json"
-echo "wrote charts/out/$r.vl.json ($(printf '%s' "$rows" | jq 'length') rows)"
+
+# Also emit a standalone HTML that embeds the spec via local Vega JS (offline view).
+# Put vega.min.js, vega-lite.min.js, vega-embed.min.js in charts/ (see README).
+out="charts/out/$r.html"
+cat > "$out" <<'HTML'
+<!doctype html>
+<html><head><meta charset="utf-8"><title>chart</title>
+<script src="../vega.min.js"></script>
+<script src="../vega-lite.min.js"></script>
+<script src="../vega-embed.min.js"></script>
+<style>body{font-family:sans-serif;margin:1rem}</style>
+</head><body>
+<div id="vis"></div>
+<script>
+const spec =
+HTML
+cat "charts/out/$r.vl.json" >> "$out"
+cat >> "$out" <<'HTML'
+;
+vegaEmbed('#vis', spec).catch(console.error);
+</script>
+</body></html>
+HTML
+echo "wrote charts/out/$r.vl.json + charts/out/$r.html ($(printf '%s' "$rows" | jq 'length') rows)"

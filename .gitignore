@@ -61,6 +61,8 @@ datacite/*.tar
 
 # Rendered chart specs (regenerable from charts/<name>.sql + .vl.json)
 charts/out/
+# Vendored Vega JS libs for offline HTML viewing (fetch per charts/README.md)
+charts/*.js
 
 # Local Claude Code config (machine-specific paths)
 .claude/

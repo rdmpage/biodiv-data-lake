@@ -18,6 +18,26 @@ in the [Vega-Lite editor](https://vega.github.io/editor) or embed with
 [vega-embed](https://github.com/vega/vega-embed). Needs `duckdb` + `jq`.
 `charts/out/` is gitignored (regenerable); recipes are version-controlled.
 
+## Offline viewing (HTML)
+
+`build_chart.sh` also writes `charts/out/<name>.html` — a standalone page that
+inlines the spec and loads Vega from **local** files, so you can open it in a
+browser with no editor and no server. Drop these three into `charts/` once
+(gitignored):
+
+```sh
+curl -L -o charts/vega.min.js       https://cdn.jsdelivr.net/npm/vega@5/build/vega.min.js
+curl -L -o charts/vega-lite.min.js  https://cdn.jsdelivr.net/npm/vega-lite@5/build/vega-lite.min.js
+curl -L -o charts/vega-embed.min.js https://cdn.jsdelivr.net/npm/vega-embed@6/build/vega-embed.min.js
+```
+
+Then just open `charts/out/<name>.html`.
+
+> Caveat: `funder_choropleth` still fetches the world-110m topojson from a CDN, so
+> the *map outline* needs network. For fully-offline, download `world-110m.json`
+> into `charts/` and point the template's `data.url` at `../world-110m.json`.
+> Inline-data charts (bars, lines) are fully offline already.
+
 ## How a recipe works
 
 - The **query** returns exactly the rows the chart needs.
