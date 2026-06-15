@@ -400,7 +400,8 @@ SELECT fundref_id,
        funder_doi,
        name,
        nullif(aliases, '')      AS aliases,
-       nullif(country, '')      AS country,
+       nullif(country, '')      AS country,          -- FundRef ISO3-ish (e.g. 'usa')
+       nullif(country_geonameid, '') AS country_geonameid,  -- joins geonames_country.geonameid
        nullif(region, '')       AS region,
        nullif(body_type, '')    AS body_type,
        nullif(body_subtype, '') AS body_subtype,
@@ -460,3 +461,16 @@ FROM read_parquet('crossref/crossref_relation.parquet');
 CREATE OR REPLACE VIEW datacite_doi AS
 SELECT doi, state, client_id, updated, source
 FROM read_parquet('datacite/datacite_doi.parquet');
+
+-- =============================================================================
+-- GeoNames countries — view over geonames/geonames_country.parquet
+-- Country dimension / crosswalk that ties the geographic codes used across the
+-- lake together: geonameid <-> iso2 <-> iso3. Bridges OFR funders (country_geonameid,
+-- and country which is ISO3-ish), ROR (country_code = iso2), orcid_person.country.
+-- =============================================================================
+CREATE OR REPLACE VIEW geonames_country AS
+SELECT geonameid, iso2, iso3, iso_numeric, country AS name, capital, continent,
+       TRY_CAST(population AS BIGINT) AS population,
+       TRY_CAST(area_sqkm AS DOUBLE)  AS area_sqkm,
+       currency_code, languages
+FROM read_parquet('geonames/geonames_country.parquet');

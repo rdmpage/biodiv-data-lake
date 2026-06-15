@@ -42,7 +42,7 @@ def main():
     w = csv.writer(open(out, 'w', newline=''), delimiter='\t')
     # fundref_id = bare number (joins ror.fundref_id); funder_doi = full
     # 10.13039/<id> (the form Crossref uses as the funder identifier). Keep both.
-    w.writerow(['fundref_id','funder_doi','name','aliases','country','region',
+    w.writerow(['fundref_id','funder_doi','name','aliases','country','country_geonameid','region',
                 'body_type','body_subtype','tax_id','status','broader_id','created','modified'])
     n = 0
     for ev, el in ET.iterparse(src, events=('end',)):
@@ -60,10 +60,17 @@ def main():
         b = find(el, 'broader')
         if b:
             broader = b[0].get(RDF + 'resource', '').replace('http://dx.doi.org/10.13039/', '')
+        cgid = ''                                                  # svf:country geonames id
+        cel = find(el, 'country')
+        if cel:
+            res = cel[0].get(RDF + 'resource', '')
+            if 'geonames.org' in res:
+                cgid = res.rstrip('/').rsplit('/', 1)[-1]
         w.writerow([fid, fdoi,
                     text1(el, 'prefLabel', 'Label', 'literalForm'),
                     aliases,
                     text1(el, 'address', 'postalAddress', 'addressCountry'),
+                    cgid,
                     text1(el, 'region'),
                     text1(el, 'fundingBodyType'),
                     text1(el, 'fundingBodySubType'),

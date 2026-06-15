@@ -32,7 +32,8 @@ Stdlib parser (`parse_registry.py`, `xml.etree.iterparse`, streamed). Generated
 | `fundref_id` | bare FundRef number, e.g. `100000001` — joins `ror.fundref_id` |
 | `funder_doi` | full `10.13039/<id>` — the form Crossref uses as a funder identifier |
 | `name`, `aliases` | `aliases` is `;`-separated (alt labels) |
-| `country`, `region` | FundRef's own codes (e.g. country `usa`) |
+| `country`, `region` | FundRef's own codes (e.g. country `usa` = ISO3-ish) |
+| `country_geonameid` | from the funder's `svf:country` — joins `geonames_country.geonameid` (→ ISO2/name; the clean country link) |
 | `body_type`, `body_subtype` | e.g. `gov` / `National government` |
 | `tax_id`, `status` | status set for deprecated/renamed funders |
 | `broader_id` | parent funder (bare id) — the SKOS hierarchy |

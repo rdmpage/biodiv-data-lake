@@ -68,6 +68,7 @@ fully reproducible from the scripts above.
 | **Open Funder Registry** | ✅ ingested | 45,700 funders → `ofr/ofr_funder.parquet`; view `ofr_funder`; `fundref_id` ⋈ `ror.fundref_id` (9,556); see ofr/README.md |
 | **Crossref** | ✅ on-demand | per-DOI REST fetch + cache → views `crossref_work/author/funder/reference`; enriches lake DOIs with funders/ORCIDs/refs; see crossref/README.md |
 | **DataCite** | ✅ DOI index | 115.7M DOIs (doi/state/client_id) → `datacite/datacite_doi.parquet`; view `datacite_doi`; CSV-only (no 615 GB JSONL); see datacite/README.md |
+| **GeoNames** | ✅ country dim | 252 countries → `geonames_country`; crosswalk geonameid ⋈ iso2 ⋈ iso3 ties OFR funder country to ROR/ORCID; see geonames/README.md |
 | GBIF | ⬜ planned | predicate/SQL download, then re-partition Hive-style |
 | BOLD, BHL | ⬜ planned | |
 
