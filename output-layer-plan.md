@@ -57,8 +57,9 @@ So users ask questions instead of writing SQL.
 
 ## Suggested sequence
 
-1. `countryInfo.txt` → first **chart recipe** (BOLD funder choropleth) as a
-   `(SQL + Vega-Lite)` pair + tiny generator. Proves the output layer end to end.
+1. ✅ `countryInfo.txt` (→ `geonames_country`) + first **chart recipe**
+   (`charts/funder_choropleth`) as a `(SQL + Vega-Lite)` pair + the
+   `charts/build_chart.sh` generator. Output layer proven end to end.
 2. MCP `run_sql` prototype over `views.sql`.
 3. Curated tools + `chart()` on top, as patterns emerge.
 

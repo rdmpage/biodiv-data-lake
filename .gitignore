@@ -59,5 +59,8 @@ crossref/failed.txt
 # DataCite Public Data File tar (32 GB; tsv/parquet ignored above)
 datacite/*.tar
 
+# Rendered chart specs (regenerable from charts/<name>.sql + .vl.json)
+charts/out/
+
 # Local Claude Code config (machine-specific paths)
 .claude/

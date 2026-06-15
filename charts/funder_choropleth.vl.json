@@ -1,0 +1,30 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "title": "Funders of papers citing BOLD datasets (by country)",
+  "width": 900,
+  "height": 460,
+  "data": {
+    "url": "https://cdn.jsdelivr.net/npm/vega-datasets@2/data/world-110m.json",
+    "format": {"type": "topojson", "feature": "countries"}
+  },
+  "transform": [
+    {
+      "lookup": "id",
+      "from": {"data": {"values": "@@ROWS@@"}, "key": "iso_numeric", "fields": ["name", "papers"]}
+    }
+  ],
+  "projection": {"type": "equalEarth"},
+  "mark": {"type": "geoshape", "stroke": "#ffffff", "strokeWidth": 0.4},
+  "encoding": {
+    "color": {
+      "field": "papers",
+      "type": "quantitative",
+      "scale": {"scheme": "yellowgreenblue"},
+      "legend": {"title": "BOLD-citing papers"}
+    },
+    "tooltip": [
+      {"field": "name", "type": "nominal", "title": "Country"},
+      {"field": "papers", "type": "quantitative", "title": "Papers"}
+    ]
+  }
+}
