@@ -69,8 +69,76 @@ fully reproducible from the scripts above.
 | **Crossref** | ✅ on-demand | per-DOI REST fetch + cache → views `crossref_work/author/funder/reference`; enriches lake DOIs with funders/ORCIDs/refs; see crossref/README.md |
 | **DataCite** | ✅ DOI index | 115.7M DOIs (doi/state/client_id) → `datacite/datacite_doi.parquet`; view `datacite_doi`; CSV-only (no 615 GB JSONL); see datacite/README.md |
 | **GeoNames** | ✅ country dim | 252 countries → `geonames_country`; crosswalk geonameid ⋈ iso2 ⋈ iso3 ties OFR funder country to ROR/ORCID; see geonames/README.md |
+| **BOLD** | ✅ ingested | BCDM snapshot → `bold/*.parquet` (occurrence 22.12M, marker 22.48M, recordset 64.5M edges); views `bold_*`; DwC term names; recordset→DOI resolved via DataCite (never constructed); see bold/rdmp_mapping.md |
+| **BOLD ⋈ citation layer** | ✅ working | `bold_recordset_doi` validates 2,604 real `DS-*` dataset DOIs; 1,509/1,513 cited datasets resolve → 2.84M specimens reach the citation graph |
 | GBIF | ⬜ planned | predicate/SQL download, then re-partition Hive-style |
-| BOLD, BHL | ⬜ planned | |
+
+## Data sources & keys
+
+How the sources connect. Rather than table-level foreign keys, the lake hangs off a
+few shared **join keys** (hubs) — each source carries one or more. **DOI** is the main
+bibliographic spine; **ORCID iD**, **ROR / FundRef id**, and **GeoNames / ISO country**
+are the people / organisation / geography spines; `taxon name` is a *soft* (string)
+join that the Catalogue of Life backbone is meant to harden. ROR is itself a crosswalk
+(ROR ⋈ GRID ⋈ FundRef ⋈ Wikidata ⋈ ISO country), collapsed here to single edges.
+
+```mermaid
+flowchart LR
+  %% ---- shared join keys (hubs) ----
+  DOI{{"DOI"}}
+  OMID{{"OMID"}}
+  ORCIDk{{"ORCID iD"}}
+  RORk{{"ROR id"}}
+  FUND{{"FundRef id"}}
+  GEO{{"GeoNames / ISO country"}}
+  RSET{{"BOLD recordset_code"}}
+  TAXON{{"taxon name (string)"}}
+
+  %% ---- sources ----
+  OC["OpenCitations<br>works · citations · work_stats"]
+  CR["Crossref<br>work · author · funder · reference · relation"]
+  DC["DataCite<br>datacite_doi"]
+  BHL["BHL<br>title/item/part · doi · pagename"]
+  COL["Catalogue of Life<br>name_usage · reference"]
+  ORC["ORCID<br>person · work · affiliation"]
+  ZEN["Zenodo / Plazi<br>record · creator · related · subject"]
+  ROR["ROR<br>organisations"]
+  OFR["Open Funder Registry<br>ofr_funder"]
+  GN["GeoNames<br>country"]
+  BOLD["BOLD<br>occurrence · marker · recordset"]
+
+  %% ---- source ↔ key ----
+  OC --- DOI
+  OC --- OMID
+  DOI --- OMID
+  CR --- DOI
+  CR --- ORCIDk
+  CR --- FUND
+  DC --- DOI
+  BHL --- DOI
+  BHL --- TAXON
+  COL --- DOI
+  COL --- TAXON
+  ORC --- ORCIDk
+  ORC --- DOI
+  ORC --- RORk
+  ZEN --- DOI
+  ZEN --- ORCIDk
+  ZEN --- TAXON
+  ROR --- RORk
+  ROR --- FUND
+  ROR --- GEO
+  OFR --- FUND
+  OFR --- GEO
+  GN --- GEO
+  BOLD --- RSET
+  BOLD --- TAXON
+  BOLD --- GEO
+  RSET -->|"DS-* if in DataCite"| DC
+  DC -.->|"resolves to"| DOI
+```
+
+It shows *what connects to what* (not cardinality); details can follow later if useful.
 
 ## Querying the lake
 
