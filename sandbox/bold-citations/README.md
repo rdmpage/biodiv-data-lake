@@ -58,9 +58,41 @@ JOIN (SELECT DISTINCT lower(work_doi) doi FROM read_csv('sandbox/bold-citations/
 WHERE rel.relation_type = 'has-preprint';
 ```
 
+## Second-degree harvest (papers citing the BOLD-citing papers)
+
+One hop further out: the DOIs of papers that **cite** the 1,430 BOLD-citing
+publications. This grows the worked example from ~1.4k DOIs to ~14k, all reachable
+through OpenCitations without leaving the lake.
+
+`second_degree.sql` walks the citation graph: first-degree `work_doi` → `doi_omid`
+→ `citations_by_cited` (in-edges, "who cites X") → citing works → back to `doi_omid`,
+anti-joining `gbif_download_omid` to strip GBIF download machine-citations (which
+otherwise dominate the in-edges — ~26k of the ~37k raw citers).
+
+```sh
+# 1. harvest the second-degree DOIs (~46 s)
+duckdb lake.duckdb -c ".read views.sql" -c ".read sandbox/bold-citations/second_degree.sql"
+# -> workdoi_citedby_workdoi.tsv (provenance edges) + second_degree_dois.txt (DOI list)
+
+# 2. enrich them with Crossref (skips DOIs already cached from the first-degree set)
+CROSSREF_MAILTO=you@example.org php crossref/fetch.php sandbox/bold-citations/second_degree_dois.txt
+./crossref/build_parquet.sh
+```
+
+Yield: **14,099 distinct second-degree DOIs** across 22,664 provenance edges (a
+paper can cite several BOLD-citing papers), from 1,209 first-degree papers that
+have real (non-GBIF, DOI-bearing) citers. 1,345 of the 1,430 first-degree DOIs
+(94%) are in OpenCitations; the rest aren't indexed there.
+
+`workdoi_citedby_workdoi.tsv` keeps the `(first_degree_doi, second_degree_doi)`
+provenance, so you can always trace a harvested DOI back to which BOLD-citing
+paper(s) it cites.
+
 ## Notes
 
 - Anchored on the BOLD dataset↔publication pairing; `work_doi` joins everything
   in the lake (`crossref_*`, `doi_omid`, `orcid_person` via authors, `ofr`/`ror`
   via funders).
 - `data_doi` (the BOLD dataset) is a DataCite DOI — present in `datacite_doi`.
+- The second-degree harvest (`second_degree.sql`) is regenerable from the lake;
+  `datadoi_cites_workdoi.tsv` remains the versioned source of truth for hop 1.
