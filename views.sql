@@ -474,3 +474,43 @@ SELECT geonameid, iso2, iso3, iso_numeric, country AS name, capital, continent,
        TRY_CAST(area_sqkm AS DOUBLE)  AS area_sqkm,
        currency_code, languages
 FROM read_parquet('geonames/geonames_country.parquet');
+
+-- =============================================================================
+-- BOLD (Barcode of Life Data System) — adapter views over bold/*.parquet
+-- Built by bold/build_parquet.sh from the BOLD Public BCDM snapshot, applying the
+-- BCDM -> Darwin Core crosswalk in bold/rdmp_mapping.md. UNLIKE the snake_case views
+-- elsewhere, these keep Darwin Core *term* names (occurrenceID, scientificName,
+-- decimalLatitude, ...) so they join cleanly to GBIF / DwC data — quote the camelCase
+-- columns in queries. Missing values ('None' and '') were coerced to NULL at build.
+-- =============================================================================
+
+-- One row per specimen (key "occurrenceID" = BOLD processid). "scientificName" holds
+-- only FORMAL binomials/trinomials; informal / higher-rank names live in
+-- "verbatimIdentification". So the query for not-a-proper-name records is:
+--   WHERE "scientificName" IS NULL AND "verbatimIdentification" IS NOT NULL
+CREATE OR REPLACE VIEW bold_occurrence AS
+SELECT * FROM read_parquet('bold/bold_occurrence.parquet');
+
+-- One row per raw record (specimen x marker); deterministic minted bold_record_id.
+-- "occurrenceID" is the FK to bold_occurrence. "target_gene" = BCDM marker_code;
+-- "associatedSequences" = INSDC/GenBank accession (raw, not URL-prefixed yet).
+CREATE OR REPLACE VIEW bold_marker AS
+SELECT * FROM read_parquet('bold/bold_marker.parquet');
+
+-- Exploded specimen<->recordset bridge ("occurrenceID" -> recordset_code). A
+-- recordset_code is a project code (e.g. AANIC) or a dataset code (DS-*). NO DOIs here.
+CREATE OR REPLACE VIEW bold_recordset AS
+SELECT * FROM read_parquet('bold/bold_recordset.parquet');
+
+-- Validated recordset_code -> dataset DOI map. A DS-* code's candidate 10.5883/ds-<code>
+-- is kept ONLY if it actually exists in DataCite — DOIs are never synthesised, because
+-- most recordsets have none (~2,600 of ~13,900 DS-* recordsets are registered). doi_state
+-- lets you require 'findable'. Join bold_recordset -> this on recordset_code to reach
+-- occurrence-level DOIs, then on to doi_omid / the citation graph / sandbox/bold-citations.
+CREATE OR REPLACE VIEW bold_recordset_doi AS
+SELECT DISTINCT
+  r.recordset_code,
+  lower(c.doi) AS dataset_doi,
+  c.state      AS doi_state
+FROM (SELECT DISTINCT recordset_code FROM bold_recordset WHERE recordset_code LIKE 'DS-%') r
+JOIN datacite_doi c ON lower(c.doi) = '10.5883/' || lower(r.recordset_code);
