@@ -82,60 +82,79 @@ are the people / organisation / geography spines; `taxon name` is a *soft* (stri
 join that the Catalogue of Life backbone is meant to harden. ROR is itself a crosswalk
 (ROR ⋈ GRID ⋈ FundRef ⋈ Wikidata ⋈ ISO country), collapsed here to single edges.
 
+The outer frame shows the storage/engine **layering** (medallion): raw dumps →
+**Bronze** Parquet per source (never mutated, gitignored) → **Silver** adapter views
+(`views.sql`, where the shared-key joins live) → **Gold** precomputed tables when a
+live query is too slow — all queried in place by **DuckDB** through `lake.duckdb`.
+
 ```mermaid
-flowchart LR
-  %% ---- shared join keys (hubs) ----
-  DOI{{"DOI"}}
-  OMID{{"OMID"}}
-  ORCIDk{{"ORCID iD"}}
-  RORk{{"ROR id"}}
-  FUND{{"FundRef id"}}
-  GEO{{"GeoNames / ISO country"}}
-  RSET{{"BOLD recordset_code"}}
-  TAXON{{"taxon name (string)"}}
+flowchart TB
+  %% ===== storage & engine layering (medallion) =====
+  RAW[("raw dumps<br>tar.gz · zip · CSV · REST API")]
+  BRONZE[("Bronze — raw Parquet per source<br>never mutated · gitignored · query-in-place")]
+  GOLD[("Gold — materialised when a live query is too slow<br>work_stats · doi_omid · sorted works/citations copies")]
+  ENGINE["DuckDB engine · lake.duckdb<br>catalog of views, rebuilt from views.sql"]
 
-  %% ---- sources ----
-  OC["OpenCitations<br>works · citations · work_stats"]
-  CR["Crossref<br>work · author · funder · reference · relation"]
-  DC["DataCite<br>datacite_doi"]
-  BHL["BHL<br>title/item/part · doi · pagename"]
-  COL["Catalogue of Life<br>name_usage · reference"]
-  ORC["ORCID<br>person · work · affiliation"]
-  ZEN["Zenodo / Plazi<br>record · creator · related · subject"]
-  ROR["ROR<br>organisations"]
-  OFR["Open Funder Registry<br>ofr_funder"]
-  GN["GeoNames<br>country"]
-  BOLD["BOLD<br>occurrence · marker · recordset"]
+  %% ===== Silver: the adapter views and how they share join keys =====
+  subgraph SILVER["Silver — views.sql adapter views and their shared join keys"]
+    direction LR
+    %% ---- shared join keys (hubs) ----
+    DOI{{"DOI"}}
+    OMID{{"OMID"}}
+    ORCIDk{{"ORCID iD"}}
+    RORk{{"ROR id"}}
+    FUND{{"FundRef id"}}
+    GEO{{"GeoNames / ISO country"}}
+    RSET{{"BOLD recordset_code"}}
+    TAXON{{"taxon name (string)"}}
+    %% ---- sources ----
+    OC["OpenCitations<br>works · citations · work_stats"]
+    CR["Crossref<br>work · author · funder · reference · relation"]
+    DC["DataCite<br>datacite_doi"]
+    BHL["BHL<br>title/item/part · doi · pagename"]
+    COL["Catalogue of Life<br>name_usage · reference"]
+    ORC["ORCID<br>person · work · affiliation"]
+    ZEN["Zenodo / Plazi<br>record · creator · related · subject"]
+    ROR["ROR<br>organisations"]
+    OFR["Open Funder Registry<br>ofr_funder"]
+    GN["GeoNames<br>country"]
+    BOLD["BOLD<br>occurrence · marker · recordset"]
+    %% ---- source ↔ key ----
+    OC --- DOI
+    OC --- OMID
+    DOI --- OMID
+    CR --- DOI
+    CR --- ORCIDk
+    CR --- FUND
+    DC --- DOI
+    BHL --- DOI
+    BHL --- TAXON
+    COL --- DOI
+    COL --- TAXON
+    ORC --- ORCIDk
+    ORC --- DOI
+    ORC --- RORk
+    ZEN --- DOI
+    ZEN --- ORCIDk
+    ZEN --- TAXON
+    ROR --- RORk
+    ROR --- FUND
+    ROR --- GEO
+    OFR --- FUND
+    OFR --- GEO
+    GN --- GEO
+    BOLD --- RSET
+    BOLD --- TAXON
+    BOLD --- GEO
+    RSET -->|"DS-* if in DataCite"| DC
+    DC -.->|"resolves to"| DOI
+  end
 
-  %% ---- source ↔ key ----
-  OC --- DOI
-  OC --- OMID
-  DOI --- OMID
-  CR --- DOI
-  CR --- ORCIDk
-  CR --- FUND
-  DC --- DOI
-  BHL --- DOI
-  BHL --- TAXON
-  COL --- DOI
-  COL --- TAXON
-  ORC --- ORCIDk
-  ORC --- DOI
-  ORC --- RORk
-  ZEN --- DOI
-  ZEN --- ORCIDk
-  ZEN --- TAXON
-  ROR --- RORk
-  ROR --- FUND
-  ROR --- GEO
-  OFR --- FUND
-  OFR --- GEO
-  GN --- GEO
-  BOLD --- RSET
-  BOLD --- TAXON
-  BOLD --- GEO
-  RSET -->|"DS-* if in DataCite"| DC
-  DC -.->|"resolves to"| DOI
+  %% ===== layer pipeline (declared after the subgraph so edges attach to it) =====
+  RAW -->|"per-source build_parquet.sh"| BRONZE
+  BRONZE -->|"views.sql"| SILVER
+  SILVER -->|"precompute"| GOLD
+  ENGINE -. "holds views, reads Parquet" .-> SILVER
 ```
 
 It shows *what connects to what* (not cardinality); details can follow later if useful.
