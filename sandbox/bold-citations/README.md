@@ -88,6 +88,26 @@ have real (non-GBIF, DOI-bearing) citers. 1,345 of the 1,430 first-degree DOIs
 provenance, so you can always trace a harvested DOI back to which BOLD-citing
 paper(s) it cites.
 
+## Treatments of the BOLD-citing papers (text dump)
+
+487 of the 1,430 BOLD-citing papers (34%) have a Zenodo record under their *own*
+publisher DOI (`doi_is_zenodo = false`) — almost all Plazi (biosyslit) journal
+articles. Those articles contain **2,549 taxonomic treatments** (across 204 of them),
+and for a Plazi treatment the Zenodo `Abstract` description *is* the full treatment
+text (synonymy, material examined, distribution, remarks — sometimes citing BOLD BINs
+inline).
+
+`dump_treatments.sh` writes one UTF-8 `.txt` per treatment, chaining
+`work_doi → zenodo_record (same DOI) → treatments IsPartOf it → description Abstract`:
+
+```sh
+./sandbox/bold-citations/dump_treatments.sh        # all ~2,549 treatments
+./sandbox/bold-citations/dump_treatments.sh 20     # cap to 20 (quick sample)
+```
+
+Output goes to `sandbox/bold-citations/treatments/` (**gitignored** — Plazi/Zenodo
+content, regenerable from the lake; never committed).
+
 ## Notes
 
 - Anchored on the BOLD dataset↔publication pairing; `work_doi` joins everything

@@ -37,6 +37,8 @@ opencitations/output_csv_*/
 !sandbox/bold-citations/datadoi_cites_workdoi.tsv
 # Second-degree harvest is regenerable from the lake (sandbox/bold-citations/second_degree.sql)
 sandbox/bold-citations/second_degree_dois.txt
+# Dumped Plazi treatment texts (Zenodo content; regenerable via dump_treatments.sh)
+sandbox/bold-citations/treatments/
 
 # Catalogue of Life ColDP export — bulk files extracted from export.zip
 # (reproducible; export.zip itself is ignored by *.zip above). Keep README.md.
