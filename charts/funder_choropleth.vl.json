@@ -3,28 +3,40 @@
   "title": "Funders of papers citing BOLD datasets (by country)",
   "width": 900,
   "height": 460,
-  "data": {
-    "url": "https://cdn.jsdelivr.net/npm/vega-datasets@2/data/world-110m.json",
-    "format": {"type": "topojson", "feature": "countries"}
-  },
-  "transform": [
-    {
-      "lookup": "id",
-      "from": {"data": {"values": "@@ROWS@@"}, "key": "iso_numeric", "fields": ["name", "papers"]}
-    }
-  ],
   "projection": {"type": "equalEarth"},
-  "mark": {"type": "geoshape", "stroke": "#ffffff", "strokeWidth": 0.4},
-  "encoding": {
-    "color": {
-      "field": "papers",
-      "type": "quantitative",
-      "scale": {"scheme": "yellowgreenblue"},
-      "legend": {"title": "BOLD-citing papers"}
+  "layer": [
+    {
+      "data": {
+        "url": "https://cdn.jsdelivr.net/npm/vega-datasets@2/data/world-110m.json",
+        "format": {"type": "topojson", "feature": "countries"}
+      },
+      "mark": {"type": "geoshape", "fill": "#eaeaea", "stroke": "#9a9a9a", "strokeWidth": 0.5}
     },
-    "tooltip": [
-      {"field": "name", "type": "nominal", "title": "Country"},
-      {"field": "papers", "type": "quantitative", "title": "Papers"}
-    ]
-  }
+    {
+      "data": {
+        "url": "https://cdn.jsdelivr.net/npm/vega-datasets@2/data/world-110m.json",
+        "format": {"type": "topojson", "feature": "countries"}
+      },
+      "transform": [
+        {
+          "lookup": "id",
+          "from": {"data": {"values": "@@ROWS@@"}, "key": "iso_numeric", "fields": ["name", "papers"]}
+        },
+        {"filter": "isValid(datum.papers)"}
+      ],
+      "mark": {"type": "geoshape", "stroke": "#9a9a9a", "strokeWidth": 0.5},
+      "encoding": {
+        "color": {
+          "field": "papers",
+          "type": "quantitative",
+          "scale": {"scheme": "yellowgreenblue"},
+          "legend": {"title": "BOLD-citing papers"}
+        },
+        "tooltip": [
+          {"field": "name", "type": "nominal", "title": "Country"},
+          {"field": "papers", "type": "quantitative", "title": "Papers"}
+        ]
+      }
+    }
+  ]
 }
